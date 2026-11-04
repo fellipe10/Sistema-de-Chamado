@@ -1,7 +1,8 @@
 <!DOCTYPE html>
 <html lang="pt-BR"
       xmlns:th="http://www.thymeleaf.org"
-      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout">
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -39,6 +40,15 @@
                    th:classappend="${menuAtivo == 'consultar'} ? 'ativo'"
                    th:attr="aria-current=${menuAtivo == 'consultar'} ? 'page'">
                     <i class="bi bi-search" aria-hidden="true"></i> Consultar chamado
+                </a>
+                <!-- Acesso da equipe: quem não está logado vê "Entrar"; quem já está logado vai direto para o sistema -->
+                <a class="botao-entrar" th:href="@{/login}" sec:authorize="!isAuthenticated()"
+                   th:classappend="${menuAtivo == 'login'} ? 'ativo'"
+                   th:attr="aria-current=${menuAtivo == 'login'} ? 'page'">
+                    <i class="bi bi-box-arrow-in-right" aria-hidden="true"></i> Entrar
+                </a>
+                <a class="botao-entrar" th:href="@{/}" sec:authorize="isAuthenticated()">
+                    <i class="bi bi-grid" aria-hidden="true"></i> Ir para o sistema
                 </a>
             </nav>
         </div>

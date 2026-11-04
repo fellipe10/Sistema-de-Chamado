@@ -366,6 +366,14 @@ textarea.form-control { min-height: 112px; resize: vertical; }
 }
 .nav-publica a:hover { background: rgba(255, 255, 255, 0.10); color: #FFFFFF; }
 .nav-publica a.ativo { background: rgba(255, 255, 255, 0.16); font-weight: 600; }
+/* Botão "Entrar" / "Ir para o sistema": contorno branco, separado das ações públicas */
+.nav-publica a.botao-entrar {
+    border: 1.5px solid rgba(255, 255, 255, 0.55);
+    margin-left: 10px;
+    font-weight: 600;
+}
+.nav-publica a.botao-entrar:hover { background: #FFFFFF; color: #006B3F; border-color: #FFFFFF; }
+.nav-publica a.botao-entrar.ativo { background: #FFFFFF; color: #006B3F; border-color: #FFFFFF; }
 
 .faixa-destaque {
     background: var(--goias-verde);
@@ -605,6 +613,7 @@ textarea.form-control { min-height: 112px; resize: vertical; }
     .caixa-protocolo .codigo { font-size: 1.625rem; }
     .topo-publico .conteudo-topo { padding: 14px 16px; }
     .nav-publica a { padding: 10px 14px; }
+    .nav-publica a.botao-entrar { margin-left: 0; }
 }
 
 /* ============================================================
