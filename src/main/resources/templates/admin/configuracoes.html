@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="pt-BR"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/interno}">
+<head>
+    <title>Configurações gerais</title>
+</head>
+<body>
+<th:block layout:fragment="conteudo">
+
+    <div class="cabecalho-pagina">
+        <div>
+            <a class="voltar-admin" th:href="@{/admin}"><i class="bi bi-arrow-left" aria-hidden="true"></i> Configurações</a>
+            <h1>Configurações gerais</h1>
+            <p>Ramais que aparecem para quem abre chamado e o fechamento automático de chamados resolvidos.</p>
+        </div>
+    </div>
+
+    <form method="post" th:action="@{/admin/configuracoes}" novalidate class="d-flex flex-column gap-4">
+        <section class="card card-formulario-estreito" style="max-width: 720px">
+            <div class="card-body d-flex flex-column gap-4">
+                <h2 class="card-titulo">Rodapé das telas públicas</h2>
+
+                <div class="row g-3">
+                    <div class="col-sm-6">
+                        <label class="form-label" for="ramalTi">Ramal da TI</label>
+                        <input class="form-control" id="ramalTi" name="ramalTi" type="text" maxlength="20"
+                               th:value="${form.ramalTi()}" placeholder="Ex.: 214"
+                               th:classappend="${erros['ramalTi'] != null} ? 'is-invalid'">
+                        <div class="erro-campo" th:text="${erros['ramalTi']}"></div>
+                    </div>
+                    <div class="col-sm-6">
+                        <label class="form-label" for="ramalManutencao">Ramal da Manutenção</label>
+                        <input class="form-control" id="ramalManutencao" name="ramalManutencao" type="text" maxlength="20"
+                               th:value="${form.ramalManutencao()}" placeholder="Ex.: 230"
+                               th:classappend="${erros['ramalManutencao'] != null} ? 'is-invalid'">
+                        <div class="erro-campo" th:text="${erros['ramalManutencao']}"></div>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="form-label" for="rodape">Texto do rodapé</label>
+                    <textarea class="form-control" id="rodape" name="rodape" rows="3" maxlength="300"
+                              th:text="${form.rodape()}" th:classappend="${erros['rodape'] != null} ? 'is-invalid'"></textarea>
+                    <div class="erro-campo" th:text="${erros['rodape']}"></div>
+                    <p class="form-text mb-0">Use <code>{ramal_ti}</code> e <code>{ramal_manutencao}</code> onde o número deve aparecer.
+                        Enquanto um ramal usado no texto estiver vazio, o rodapé mostra o texto genérico.</p>
+                </div>
+
+                <div>
+                    <span class="form-label d-block">Como está aparecendo agora</span>
+                    <div class="previa-rodape" th:text="${previaRodape}">Urgente de verdade? Ligue para...</div>
+                    <p class="form-text mb-0" th:if="${previaRodape == rodapeGenerico}">
+                        <i class="bi bi-info-circle" aria-hidden="true"></i> Texto genérico: preencha os ramais para eles aparecerem.</p>
+                    <a class="small fw-semibold" th:href="@{/abrir}" target="_blank" rel="noopener">
+                        Abrir o formulário público em outra aba <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i></a>
+                </div>
+            </div>
+        </section>
+
+        <section class="card card-formulario-estreito" style="max-width: 720px">
+            <div class="card-body d-flex flex-column gap-3">
+                <h2 class="card-titulo">Fechamento automático</h2>
+                <p class="small text-secondary mb-0">Chamado <strong>Resolvido</strong> há esse número de dias úteis, sem o solicitante
+                    pedir para reabrir, vira <strong>Fechado</strong> sozinho. O sistema confere a cada hora.</p>
+                <div>
+                    <label class="form-label" for="diasFechamento">Dias úteis</label>
+                    <input class="form-control" id="diasFechamento" name="diasFechamento" type="text" inputmode="numeric"
+                           maxlength="3" style="max-width: 160px"
+                           th:value="${form.diasFechamento()}" th:placeholder="'Padrão: ' + ${diasPadrao}"
+                           th:classappend="${erros['diasFechamento'] != null} ? 'is-invalid'">
+                    <div class="erro-campo" th:text="${erros['diasFechamento']}"></div>
+                    <p class="form-text mb-0">
+                        Vazio = usa o padrão do sistema (<span th:text="${diasPadrao}">5</span> dias úteis). 0 = desligado.
+                        <br>Em uso agora:
+                        <strong th:text="${diasEmUso == 0} ? 'desligado' : (${diasEmUso} + (${diasEmUso == 1} ? ' dia útil' : ' dias úteis'))">5 dias úteis</strong>.
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <div class="d-flex gap-2 justify-content-end flex-wrap" style="max-width: 720px">
+            <a class="btn btn-secundario" th:href="@{/admin/configuracoes}">Desfazer</a>
+            <button type="submit" class="btn btn-primary">
+                <i class="bi bi-check-lg" aria-hidden="true"></i> Salvar configurações
+            </button>
+        </div>
+    </form>
+</th:block>
+</body>
+</html>

@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="pt-BR"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/interno}">
+<head>
+    <title>Expediente</title>
+</head>
+<body>
+<th:block layout:fragment="conteudo" th:with="area=${escolha.atual()}">
+
+    <div class="cabecalho-pagina">
+        <div>
+            <a class="voltar-admin" th:href="@{/admin}"><i class="bi bi-arrow-left" aria-hidden="true"></i> Configurações</a>
+            <h1>Expediente</h1>
+            <p>Horário de trabalho de cada área. O prazo de SLA só conta dentro desses períodos
+                (e não conta nos <a th:href="@{/admin/feriados}">feriados</a>).</p>
+        </div>
+    </div>
+
+    <div th:replace="~{admin/fragmentos :: abasArea(${escolha}, '/admin/expediente')}"></div>
+
+    <div th:replace="~{admin/fragmentos :: avisoRecalculo('expediente', ${area.id()}, ${sugerirRecalculo})}"></div>
+
+    <section class="card">
+        <form class="card-body d-flex flex-column gap-3" method="post" th:action="@{/admin/expediente}" novalidate>
+            <input type="hidden" name="area" th:value="${area.id()}">
+            <div class="d-flex justify-content-between align-items-end flex-wrap gap-2">
+                <h2 class="card-titulo" th:text="'Expediente da área ' + ${area.nome()}">Expediente da área TI</h2>
+                <span class="text-secondary small tabular">Total na semana: <strong th:text="${totalSemana}">40h</strong></span>
+            </div>
+
+            <div class="alert alert-danger mb-0" role="alert" th:if="${erros['semana'] != null}">
+                <i class="bi bi-exclamation-circle" aria-hidden="true"></i> <span th:text="${erros['semana']}">Informe pelo menos um período.</span>
+            </div>
+            <div class="alert alert-danger mb-0" role="alert" th:if="${!#maps.isEmpty(erros) and erros['semana'] == null}">
+                <i class="bi bi-exclamation-circle" aria-hidden="true"></i> Confira os dias destacados abaixo. Nada foi salvo.
+            </div>
+
+            <div class="dias-expediente">
+                <div class="dia-expediente" th:each="d : ${dias}"
+                     th:classappend="${d.vazio()} ? 'sem-expediente'">
+                    <div class="nome-dia">
+                        <span th:text="${d.nome()}">Segunda-feira</span>
+                        <small th:if="${d.vazio()}">Sem expediente</small>
+                    </div>
+                    <div class="periodos">
+                        <div class="periodo" th:each="p, i : ${d.periodos()}">
+                            <input class="form-control" type="time" step="300"
+                                   th:name="${d.chave()} + '_inicio_' + ${i.index}" th:value="${p.inicio()}"
+                                   th:classappend="${erros[d.chave()] != null} ? 'is-invalid'"
+                                   th:attr="aria-label=${d.nome()} + ', período ' + ${i.count} + ', início'">
+                            <span class="ate">até</span>
+                            <input class="form-control" type="time" step="300"
+                                   th:name="${d.chave()} + '_fim_' + ${i.index}" th:value="${p.fim()}"
+                                   th:classappend="${erros[d.chave()] != null} ? 'is-invalid'"
+                                   th:attr="aria-label=${d.nome()} + ', período ' + ${i.count} + ', fim'">
+                            <button type="button" class="btn-limpar" data-limpar-periodo hidden
+                                    title="Limpar este período" aria-label="Limpar este período">
+                                <i class="bi bi-x-lg" aria-hidden="true"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="total-dia" th:text="${d.total()}">8h</div>
+                    <div class="erro-campo" th:text="${erros[d.chave()]}"></div>
+                </div>
+            </div>
+
+            <p class="form-text mb-0">Deixe os dois horários vazios para não usar um período. Dia sem nenhum período = sem expediente
+                (ex.: sábado e domingo). Os totais por dia são atualizados ao salvar.</p>
+
+            <div class="d-flex gap-2 justify-content-end flex-wrap pt-2 borda-topo">
+                <a class="btn btn-secundario" th:href="@{/admin/expediente(area=${area.id()})}">Desfazer</a>
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-check-lg" aria-hidden="true"></i> Salvar expediente
+                </button>
+            </div>
+        </form>
+    </section>
+
+    <!-- Copiar de outra área -->
+    <section class="card" th:if="${#lists.size(escolha.opcoes()) > 1}">
+        <form class="card-body copiar-area" method="post" th:action="@{/admin/expediente/copiar}">
+            <input type="hidden" name="area" th:value="${area.id()}">
+            <div class="flex-grow-1">
+                <label class="form-label" for="origem">Copiar de outra área</label>
+                <p class="form-text mt-0 mb-2">Substitui todo o expediente da área <strong th:text="${area.nome()}">TI</strong>
+                    pelo da área escolhida.</p>
+                <select class="form-select" id="origem" name="origem" required>
+                    <option value="">Escolha a área</option>
+                    <option th:each="a : ${escolha.opcoes()}" th:unless="${a.id() == area.id()}"
+                            th:value="${a.id()}" th:text="${a.rotulo()}">Manutenção</option>
+                </select>
+            </div>
+            <button type="submit" class="btn btn-secundario">
+                <i class="bi bi-copy" aria-hidden="true"></i> Copiar expediente
+            </button>
+        </form>
+    </section>
+</th:block>
+
+<th:block layout:fragment="scripts">
+    <script th:src="@{/js/admin.js}"></script>
+</th:block>
+</body>
+</html>

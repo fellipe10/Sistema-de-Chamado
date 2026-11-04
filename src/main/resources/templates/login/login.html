@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="pt-BR"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/publico}"
+      th:with="cardEstreito=true">
+<head>
+    <title>Entrar</title>
+</head>
+<body>
+
+<div layout:fragment="destaque" class="conteudo-faixa centralizado">
+    <h1>Área da equipe</h1>
+    <p>Acesso para atendentes, gestores e administradores da TI e da Manutenção.</p>
+</div>
+
+<th:block layout:fragment="conteudo">
+    <form class="corpo corpo-login" th:action="@{/login}" method="post" novalidate>
+        <div class="cabecalho text-center">
+            <img class="logo-login" th:src="@{/img/logo-goias.png}" alt="" width="64" height="64">
+            <h2>Entrar</h2>
+            <p>Use seu e-mail e a senha cadastrada pelo administrador.</p>
+        </div>
+
+        <div class="alert alert-danger mb-0" role="alert" th:if="${param.erro != null}">
+            <i class="bi bi-exclamation-circle" aria-hidden="true"></i>
+            E-mail ou senha incorretos.
+        </div>
+        <div class="alert alert-success mb-0" role="status" th:if="${param.saiu != null}">
+            <i class="bi bi-check-circle" aria-hidden="true"></i>
+            Você saiu do sistema.
+        </div>
+        <div class="alert alert-warning mb-0" role="status" th:if="${param.encerrada != null}">
+            <i class="bi bi-shield-exclamation" aria-hidden="true"></i>
+            Sua sessão foi encerrada pelo administrador. Entre de novo, se ainda tiver acesso.
+        </div>
+
+        <div class="d-flex flex-column gap-3">
+            <div>
+                <label class="form-label" for="email">E-mail</label>
+                <input class="form-control" id="email" name="email" type="email" maxlength="150"
+                       autocomplete="username" autofocus required placeholder="voce@goiasec.com.br"
+                       autocapitalize="none" spellcheck="false"
+                       th:classappend="${param.erro != null} ? 'is-invalid'">
+            </div>
+            <div>
+                <label class="form-label" for="senha">Senha</label>
+                <div class="campo-senha">
+                    <input class="form-control" id="senha" name="senha" type="password" maxlength="100"
+                           autocomplete="current-password" required
+                           th:classappend="${param.erro != null} ? 'is-invalid'">
+                    <button type="button" class="mostrar-senha" data-mostrar-senha="senha"
+                            aria-label="Mostrar senha" title="Mostrar senha">
+                        <i class="bi bi-eye" aria-hidden="true"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary w-100">
+            <i class="bi bi-box-arrow-in-right" aria-hidden="true"></i> Entrar
+        </button>
+
+        <p class="text-center text-secondary small m-0">
+            Esqueceu a senha? Fale com o administrador do sistema.
+        </p>
+
+        <div class="rodape-acoes justify-content-center">
+            <a th:href="@{/abrir}" class="small fw-semibold">
+                <i class="bi bi-arrow-left" aria-hidden="true"></i> Quero abrir um chamado
+            </a>
+        </div>
+    </form>
+</th:block>
+
+<th:block layout:fragment="scripts">
+    <script th:src="@{/js/mostrar-senha.js}"></script>
+</th:block>
+</body>
+</html>

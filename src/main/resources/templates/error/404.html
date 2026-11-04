@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="pt-BR"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/publico}"
+      th:with="cardEstreito=true">
+<head>
+    <title>Página não encontrada</title>
+</head>
+<body>
+<div layout:fragment="destaque" class="conteudo-faixa centralizado">
+    <h1>Página não encontrada.</h1>
+    <p>O endereço pode estar errado ou a página não existe mais.</p>
+</div>
+<th:block layout:fragment="conteudo">
+    <div th:replace="~{layout/erro :: conteudo('bi-signpost-split', '404', 'Não encontramos esta página', 'Confira o endereço. Se você chegou aqui por um link do sistema, volte e tente de novo.')}"></div>
+</th:block>
+</body>
+</html>

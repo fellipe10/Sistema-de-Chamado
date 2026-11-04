@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="pt-BR"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/interno}">
+<head>
+    <title>Prazos (SLA)</title>
+</head>
+<body>
+<th:block layout:fragment="conteudo" th:with="area=${escolha.atual()}">
+
+    <div class="cabecalho-pagina">
+        <div>
+            <a class="voltar-admin" th:href="@{/admin}"><i class="bi bi-arrow-left" aria-hidden="true"></i> Configurações</a>
+            <h1>Prazos (SLA)</h1>
+            <p>Quanto tempo a equipe tem para dar a 1ª resposta e para resolver, por prioridade.
+                O prazo conta só no <a th:href="@{/admin/expediente(area=${area.id()})}">expediente</a> da área (1 dia útil = 8 h).</p>
+        </div>
+    </div>
+
+    <div th:replace="~{admin/fragmentos :: abasArea(${escolha}, '/admin/sla')}"></div>
+
+    <div th:replace="~{admin/fragmentos :: avisoRecalculo('sla', ${area.id()}, ${sugerirRecalculo})}"></div>
+
+    <section class="card">
+        <form class="card-body d-flex flex-column gap-3" method="post" th:action="@{/admin/sla}" novalidate>
+            <input type="hidden" name="area" th:value="${area.id()}">
+            <h2 class="card-titulo" th:text="'Prazos da área ' + ${area.nome()}">Prazos da área TI</h2>
+
+            <div class="alert alert-danger mb-0" role="alert" th:unless="${#maps.isEmpty(erros)}">
+                <i class="bi bi-exclamation-circle" aria-hidden="true"></i> Confira os prazos destacados abaixo.
+            </div>
+
+            <table class="grade-sla">
+                <thead>
+                <tr>
+                    <th scope="col">Prioridade</th>
+                    <th scope="col">1ª resposta</th>
+                    <th scope="col">Resolução</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:each="l : ${grade}" th:with="p=${l.prioridade().name()}">
+                    <th scope="row" class="align-middle">
+                        <span class="badge-pilula" th:classappend="'prioridade-' + ${#strings.toLowerCase(p)}"
+                              th:text="${l.prioridade().descricao}">Crítica</span>
+                    </th>
+                    <td data-rotulo="1ª resposta">
+                        <div class="campo-duracao">
+                            <input class="form-control" type="text" inputmode="numeric" maxlength="4"
+                                   th:name="${p} + '_primeiraHoras'" th:value="${l.primeiraHoras()}"
+                                   th:classappend="${erros[p + '.primeira'] != null} ? 'is-invalid'"
+                                   th:attr="aria-label=${l.prioridade().descricao} + ', 1ª resposta, horas'"><span>h</span>
+                            <input class="form-control" type="text" inputmode="numeric" maxlength="2"
+                                   th:name="${p} + '_primeiraMinutos'" th:value="${l.primeiraMinutos()}"
+                                   th:classappend="${erros[p + '.primeira'] != null} ? 'is-invalid'"
+                                   th:attr="aria-label=${l.prioridade().descricao} + ', 1ª resposta, minutos'"><span>min</span>
+                        </div>
+                        <span class="equivale" th:text="${l.dicaPrimeira()}">= 30 min</span>
+                        <div class="erro-campo" th:text="${erros[p + '.primeira']}"></div>
+                    </td>
+                    <td data-rotulo="Resolução">
+                        <div class="campo-duracao">
+                            <input class="form-control" type="text" inputmode="numeric" maxlength="4"
+                                   th:name="${p} + '_resolucaoHoras'" th:value="${l.resolucaoHoras()}"
+                                   th:classappend="${erros[p + '.resolucao'] != null} ? 'is-invalid'"
+                                   th:attr="aria-label=${l.prioridade().descricao} + ', resolução, horas'"><span>h</span>
+                            <input class="form-control" type="text" inputmode="numeric" maxlength="2"
+                                   th:name="${p} + '_resolucaoMinutos'" th:value="${l.resolucaoMinutos()}"
+                                   th:classappend="${erros[p + '.resolucao'] != null} ? 'is-invalid'"
+                                   th:attr="aria-label=${l.prioridade().descricao} + ', resolução, minutos'"><span>min</span>
+                        </div>
+                        <span class="equivale" th:text="${l.dicaResolucao()}">= 4h</span>
+                        <div class="erro-campo" th:text="${erros[p + '.resolucao']}"></div>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+
+            <p class="form-text mb-0">Horas úteis: um prazo de 16 h é igual a 2 dias de expediente de 8 h.</p>
+
+            <div class="d-flex gap-2 justify-content-end flex-wrap pt-2 borda-topo">
+                <a class="btn btn-secundario" th:href="@{/admin/sla(area=${area.id()})}">Desfazer</a>
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-check-lg" aria-hidden="true"></i> Salvar prazos
+                </button>
+            </div>
+        </form>
+    </section>
+</th:block>
+</body>
+</html>

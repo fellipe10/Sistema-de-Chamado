@@ -1,0 +1,2 @@
+# Etapa 5: confere as variáveis de ambiente do perfil prod antes de tudo subir
+org.springframework.boot.env.EnvironmentPostProcessor=br.com.goias.chamados.config.ConferenciaVariaveisProducao

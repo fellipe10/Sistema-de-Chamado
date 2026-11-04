@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="pt-BR"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/publico}"
+      th:with="cardEstreito=true">
+<head>
+    <title>Acesso negado</title>
+</head>
+<body>
+<div layout:fragment="destaque" class="conteudo-faixa centralizado">
+    <h1>Acesso negado.</h1>
+    <p>Seu usuário não tem permissão para esta página.</p>
+</div>
+<th:block layout:fragment="conteudo">
+    <div th:replace="~{layout/erro :: conteudo('bi-shield-lock', '403', 'Você não pode fazer isso', 'Esta página ou ação é de outro perfil. Se precisar de acesso, fale com o gestor da sua área ou com o administrador.')}"></div>
+</th:block>
+</body>
+</html>

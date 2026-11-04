@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="pt-BR"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/publico}"
+      th:with="cardEstreito=true">
+<head>
+    <title>Erro no sistema</title>
+</head>
+<body>
+<div layout:fragment="destaque" class="conteudo-faixa centralizado">
+    <h1>Algo deu errado.</h1>
+    <p>Tivemos um problema para concluir o que você pediu.</p>
+</div>
+<th:block layout:fragment="conteudo">
+    <div th:replace="~{layout/erro :: conteudo('bi-exclamation-octagon', '500', 'Erro no sistema', 'Tente de novo em alguns minutos. Se continuar acontecendo, avise a TI informando o horário e o que você estava fazendo.')}"></div>
+</th:block>
+</body>
+</html>

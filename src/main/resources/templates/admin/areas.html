@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="pt-BR"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/interno}">
+<head>
+    <title>Áreas</title>
+</head>
+<body>
+<th:block layout:fragment="conteudo" th:with="editando=${edicao != null}">
+
+    <div class="cabecalho-pagina">
+        <div>
+            <a class="voltar-admin" th:href="@{/admin}"><i class="bi bi-arrow-left" aria-hidden="true"></i> Configurações</a>
+            <h1>Áreas</h1>
+            <p>Equipes que recebem chamados. A sigla aparece no código do chamado (ex.: <strong>TI</strong>-2026-7K3F).</p>
+        </div>
+    </div>
+
+    <div class="grade-cadastro">
+        <div class="d-flex flex-column gap-4">
+            <section class="card">
+                <form class="card-body filtros-admin" method="get" th:action="@{/admin/areas}" role="search">
+                    <div class="campo-busca">
+                        <label class="form-label" for="busca">Buscar</label>
+                        <div class="input-icone">
+                            <i class="bi bi-search" aria-hidden="true"></i>
+                            <input class="form-control" id="busca" name="busca" type="search" maxlength="100"
+                                   th:value="${busca}" placeholder="Nome ou sigla">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="form-label" for="situacao">Situação</label>
+                        <select class="form-select" id="situacao" name="situacao">
+                            <option th:each="s : ${situacoes}" th:value="${s.parametro}" th:text="${s.rotulo}"
+                                    th:selected="${s == situacao}">Ativos</option>
+                        </select>
+                    </div>
+                    <div class="botoes-filtro">
+                        <button type="submit" class="btn btn-primary"><i class="bi bi-funnel" aria-hidden="true"></i> Filtrar</button>
+                        <a class="btn btn-secundario" th:href="@{/admin/areas}"
+                           th:if="${busca != null or situacao.name() != 'ATIVOS'}">Limpar</a>
+                    </div>
+                </form>
+            </section>
+
+            <section class="card">
+                <div class="card-body d-flex flex-column gap-3">
+                    <div class="vazio" th:if="${#lists.isEmpty(areas)}">
+                        <span class="icone" aria-hidden="true"><i class="bi bi-diagram-3"></i></span>
+                        <strong>Nenhuma área encontrada.</strong>
+                    </div>
+
+                    <div class="tabela-admin" th:unless="${#lists.isEmpty(areas)}">
+                        <table class="table tabela-limpa">
+                            <thead>
+                            <tr>
+                                <th scope="col">Sigla</th>
+                                <th scope="col">Área</th>
+                                <th scope="col" class="text-end">Categorias</th>
+                                <th scope="col" class="text-end">Equipe</th>
+                                <th scope="col" class="text-end">Chamados</th>
+                                <th scope="col">Situação</th>
+                                <th scope="col"><span class="visually-hidden">Ações</span></th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            <tr th:each="a : ${areas}" th:classappend="${!a.ativo()} ? 'inativo'">
+                                <td><span class="sigla-area" th:text="${a.sigla()}">TI</span></td>
+                                <td>
+                                    <span class="titulo" th:text="${a.nome()}">TI</span>
+                                    <span class="alerta-linha" th:if="${a.foraDoFormulario()}">
+                                        <i class="bi bi-exclamation-triangle" aria-hidden="true"></i>
+                                        Sem categoria ativa: ainda não aparece no formulário público.</span>
+                                </td>
+                                <td class="text-end tabular">
+                                    <a th:href="@{/admin/categorias(area=${a.id()})}" th:text="${a.categoriasAtivas()}">10</a>
+                                </td>
+                                <td class="text-end tabular" th:text="${a.usuariosAtivos()}">2</td>
+                                <td class="text-end tabular">
+                                    <span th:text="${a.chamados()}">40</span>
+                                    <span class="uso d-block" th:if="${a.emAndamento() > 0}"
+                                          th:text="${a.emAndamento()} + ' em andamento'">3 em andamento</span>
+                                </td>
+                                <td><span class="badge-pilula com-ponto" th:classappend="${a.ativo()} ? 'sla-ok' : 'sla-sem'"
+                                          th:text="${a.ativo()} ? 'Ativa' : 'Inativa'">Ativa</span></td>
+                                <td>
+                                    <div class="acoes-linha">
+                                        <a class="btn btn-sm btn-secundario btn-icone" title="Editar" aria-label="Editar" th:href="@{/admin/areas(editar=${a.id()})}"><i class="bi bi-pencil" aria-hidden="true"></i></a>
+                                        <form method="post" th:if="${a.ativo()}" th:action="@{/admin/areas/{id}/desativar(id=${a.id()})}">
+                                            <button type="submit" class="btn btn-sm btn-secundario btn-icone" title="Desativar" aria-label="Desativar"><i class="bi bi-slash-circle" aria-hidden="true"></i></button>
+                                        </form>
+                                        <form method="post" th:unless="${a.ativo()}" th:action="@{/admin/areas/{id}/reativar(id=${a.id()})}">
+                                            <button type="submit" class="btn btn-sm btn-outline-primary btn-icone" title="Reativar" aria-label="Reativar"><i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i></button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <ul class="cards-admin" th:unless="${#lists.isEmpty(areas)}">
+                        <li th:each="a : ${areas}">
+                            <div class="card-chamado">
+                                <span class="linha-topo">
+                                    <span class="d-flex gap-2 align-items-center">
+                                        <span class="sigla-area" th:text="${a.sigla()}">TI</span>
+                                        <span class="titulo" th:text="${a.nome()}">TI</span>
+                                    </span>
+                                    <span class="badge-pilula com-ponto" th:classappend="${a.ativo()} ? 'sla-ok' : 'sla-sem'"
+                                          th:text="${a.ativo()} ? 'Ativa' : 'Inativa'">Ativa</span>
+                                </span>
+                                <span class="alerta-linha" th:if="${a.foraDoFormulario()}">Sem categoria ativa: ainda não aparece no formulário público.</span>
+                                <span class="rodape-card">
+                                    <span th:text="${a.categoriasAtivas()} + ' categorias'">10 categorias</span>
+                                    <span th:text="${a.usuariosAtivos()} + ' na equipe'">2 na equipe</span>
+                                    <span th:text="${a.chamados()} + ' chamados'">40 chamados</span>
+                                </span>
+                                <div class="acoes-linha justify-content-start">
+                                    <a class="btn btn-sm btn-secundario" th:href="@{/admin/areas(editar=${a.id()})}">Editar</a>
+                                    <a class="btn btn-sm btn-secundario" th:href="@{/admin/categorias(area=${a.id()})}">Categorias</a>
+                                    <form method="post" th:if="${a.ativo()}" th:action="@{/admin/areas/{id}/desativar(id=${a.id()})}">
+                                        <button type="submit" class="btn btn-sm btn-secundario">Desativar</button>
+                                    </form>
+                                    <form method="post" th:unless="${a.ativo()}" th:action="@{/admin/areas/{id}/reativar(id=${a.id()})}">
+                                        <button type="submit" class="btn btn-sm btn-outline-primary">Reativar</button>
+                                    </form>
+                                </div>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+            </section>
+        </div>
+
+        <!-- Nova área / editar -->
+        <section class="card card-form" th:classappend="${editando} ? 'editando'">
+            <form class="card-body d-flex flex-column gap-3" method="post" th:action="@{/admin/areas}" novalidate>
+                <h2 class="card-titulo" th:text="${editando} ? 'Editar área' : 'Nova área'">Nova área</h2>
+                <input type="hidden" name="id" th:value="${editando} ? ${edicao.id()}">
+                <div>
+                    <label class="form-label" for="nome">Nome</label>
+                    <input class="form-control" id="nome" name="nome" type="text" maxlength="80" required
+                           th:value="${nome}" placeholder="Ex.: Limpeza"
+                           th:classappend="${erros['nome'] != null} ? 'is-invalid'">
+                    <div class="erro-campo" th:text="${erros['nome']}"></div>
+                </div>
+                <div>
+                    <label class="form-label" for="sigla">Sigla</label>
+                    <input class="form-control text-uppercase" id="sigla" name="sigla" type="text" maxlength="10" required
+                           th:value="${sigla}" placeholder="Ex.: LIMP" autocomplete="off"
+                           th:readonly="${editando and edicao.siglaTravada()}"
+                           th:classappend="${erros['sigla'] != null} ? 'is-invalid'">
+                    <div class="erro-campo" th:text="${erros['sigla']}"></div>
+                    <p class="form-text mb-0" th:if="${editando and edicao.siglaTravada()}">
+                        <i class="bi bi-lock" aria-hidden="true"></i>
+                        Travada: já existem <span th:text="${edicao.chamados()}">40</span> chamados com esta sigla no código.</p>
+                    <p class="form-text mb-0" th:unless="${editando and edicao.siglaTravada()}">
+                        2 a 10 letras, sem acento. Não pode mudar depois do primeiro chamado.</p>
+                </div>
+                <div class="aviso-visibilidade publico" th:unless="${editando}">
+                    <i class="bi bi-magic" aria-hidden="true"></i>
+                    <span>A área nova já começa com o expediente padrão (seg–sex, 08–12 e 13–17) e os prazos de SLA padrão.
+                        Dá para ajustar depois.</span>
+                </div>
+                <div class="d-flex gap-2 justify-content-end flex-wrap">
+                    <a class="btn btn-secundario" th:if="${editando}" th:href="@{/admin/areas}">Cancelar</a>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi" th:classappend="${editando} ? 'bi-check-lg' : 'bi-plus-lg'" aria-hidden="true"></i>
+                        <span th:text="${editando} ? 'Salvar' : 'Criar área'">Criar área</span>
+                    </button>
+                </div>
+                <div class="d-flex flex-column gap-1 small borda-topo pt-3" th:if="${editando}">
+                    <a th:href="@{/admin/categorias(area=${edicao.id()})}"><i class="bi bi-tags" aria-hidden="true"></i> Categorias desta área</a>
+                    <a th:href="@{/admin/expediente(area=${edicao.id()})}"><i class="bi bi-clock" aria-hidden="true"></i> Expediente desta área</a>
+                    <a th:href="@{/admin/sla(area=${edicao.id()})}"><i class="bi bi-stopwatch" aria-hidden="true"></i> Prazos (SLA) desta área</a>
+                </div>
+            </form>
+        </section>
+    </div>
+</th:block>
+</body>
+</html>

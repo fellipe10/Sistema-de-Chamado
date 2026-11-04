@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="pt-BR" xmlns:th="http://www.thymeleaf.org">
+<body>
+
+<!-- Abas de área (SLA e expediente). escolha = EscolhaArea.Escolha, rota = "/admin/sla" -->
+<nav class="abas-area" aria-label="Área" th:fragment="abasArea(escolha, rota)">
+    <a th:each="a : ${escolha.opcoes()}" th:href="@{${rota}(area=${a.id()})}"
+       th:classappend="${a.id() == escolha.atual().id()} ? 'ativa'"
+       th:attr="aria-current=${a.id() == escolha.atual().id()} ? 'page'"
+       th:text="${a.rotulo()}">TI</a>
+</nav>
+
+<!-- Aviso + botão Recalcular. origem = 'sla' | 'expediente' | 'feriado'; areaId pode ser null; destaque = true logo depois de salvar -->
+<div class="aviso-recalculo" th:fragment="avisoRecalculo(origem, areaId, destaque)"
+     th:classappend="${destaque} ? 'destaque'" role="note">
+    <i class="bi bi-info-circle" aria-hidden="true"></i>
+    <span class="texto">
+        <strong th:if="${destaque}">Os prazos dos chamados que já estão abertos não mudaram. </strong>
+        Vale para chamados novos e para mudanças de prioridade. Prazos já calculados não mudam,
+        a não ser que você use o botão Recalcular.
+    </span>
+    <a class="btn btn-sm" th:classappend="${destaque} ? 'btn-primary' : 'btn-outline-primary'"
+       th:href="@{/admin/recalcular(origem=${origem}, area=${areaId})}">
+        <i class="bi bi-arrow-repeat" aria-hidden="true"></i> Recalcular prazos dos chamados em andamento
+    </a>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="pt-BR"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/publico}">
+<head>
+    <title>Abrir chamado</title>
+</head>
+<body>
+
+<div layout:fragment="destaque">
+    <h1>Precisa de ajuda? Abra um chamado.</h1>
+    <p>Conte o que está acontecendo e a equipe de TI ou de Manutenção vai atender você. Não precisa de login.</p>
+</div>
+
+<th:block layout:fragment="conteudo">
+<form id="formAbertura" class="form-etapas" method="post" enctype="multipart/form-data" novalidate
+      th:action="@{/abrir}" th:object="${form}" th:attr="data-etapa-inicial=${etapaInicial}">
+
+    <!-- Indicador de etapas -->
+    <div class="etapas" aria-label="Etapas do formulário">
+        <div class="etapa" data-indicador="1">
+            <span class="numero">1</span>
+            <span class="rotulo"><small>Etapa 1</small><span>Seus dados</span></span>
+        </div>
+        <div class="etapa" data-indicador="2">
+            <span class="numero">2</span>
+            <span class="rotulo"><small>Etapa 2</small><span>O problema</span></span>
+        </div>
+        <div class="etapa" data-indicador="3">
+            <span class="numero">3</span>
+            <span class="rotulo"><small>Etapa 3</small><span>Revisão</span></span>
+        </div>
+    </div>
+
+    <!-- ============================ ETAPA 1 ============================ -->
+    <section class="corpo painel-etapa" data-etapa="1" aria-labelledby="tituloEtapa1">
+        <div class="cabecalho">
+            <h2 id="tituloEtapa1">Seus dados</h2>
+            <p>Usamos esses dados só para falar com você sobre este chamado.</p>
+        </div>
+
+        <div class="alert alert-danger mb-0 alerta-servidor" role="alert"
+             th:if="${#fields.hasErrors('*') and etapaInicial == 1}">
+            <i class="bi bi-exclamation-circle" aria-hidden="true"></i>
+            Confira os campos destacados abaixo.
+        </div>
+
+        <div class="row g-3 gx-md-4">
+            <div class="col-12">
+                <label class="form-label" for="nome">Nome completo</label>
+                <input class="form-control" id="nome" type="text" th:field="*{nome}"
+                       placeholder="Ex.: Maria da Silva" maxlength="120" autocomplete="name" required
+                       th:errorclass="is-invalid">
+                <div class="erro-campo" data-erro-de="nome"><th:block th:errors="*{nome}"></th:block></div>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label" for="setorId">Setor</label>
+                <select class="form-select" id="setorId" th:field="*{setorId}" required th:errorclass="is-invalid">
+                    <option value="">Selecione seu setor</option>
+                    <option th:each="setor : ${setores}" th:value="${setor.id}" th:text="${setor.nome}">Financeiro</option>
+                </select>
+                <div class="erro-campo" data-erro-de="setorId"><th:block th:errors="*{setorId}"></th:block></div>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label" for="matricula">Matrícula <span class="opcional">opcional</span></label>
+                <input class="form-control" id="matricula" type="text" th:field="*{matricula}"
+                       placeholder="Ex.: 10234" maxlength="30" th:errorclass="is-invalid">
+                <div class="erro-campo" data-erro-de="matricula"><th:block th:errors="*{matricula}"></th:block></div>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label" for="email">E-mail</label>
+                <input class="form-control" id="email" type="email" th:field="*{email}"
+                       placeholder="voce@goiasec.com.br" maxlength="150" autocomplete="email"
+                       th:errorclass="is-invalid">
+                <div class="erro-campo" data-erro-de="email"><th:block th:errors="*{email}"></th:block></div>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label" for="telefone">Telefone, WhatsApp ou ramal</label>
+                <input class="form-control" id="telefone" type="tel" th:field="*{telefone}"
+                       placeholder="(62) 90000-0000" maxlength="20" autocomplete="tel"
+                       th:classappend="${#fields.hasErrors('email') and form.telefone == null and form.email == null} ? 'is-invalid'">
+                <div class="erro-campo" data-erro-de="telefone"><th:block th:errors="*{telefone}"></th:block></div>
+            </div>
+            <div class="col-12 pt-0">
+                <p class="form-text m-0">Informe pelo menos um contato: e-mail ou telefone.</p>
+            </div>
+        </div>
+
+        <div class="rodape-acoes so-direita">
+            <button type="button" class="btn btn-primary" data-ir-para="2">Continuar</button>
+        </div>
+    </section>
+
+    <!-- ============================ ETAPA 2 ============================ -->
+    <section class="corpo painel-etapa" data-etapa="2" aria-labelledby="tituloEtapa2">
+        <div class="cabecalho">
+            <h2 id="tituloEtapa2">O problema</h2>
+            <p>Escolha a área e descreva o que está acontecendo.</p>
+        </div>
+
+        <div class="alert alert-danger mb-0 alerta-servidor" role="alert"
+             th:if="${#fields.hasErrors('*') and etapaInicial == 2}">
+            <i class="bi bi-exclamation-circle" aria-hidden="true"></i>
+            Confira os campos destacados abaixo.
+        </div>
+
+        <!-- Área: dois cards clicáveis -->
+        <fieldset>
+            <legend class="visually-hidden">Área</legend>
+            <div class="row g-3">
+                <div class="col-md-6" th:each="area : ${areas}">
+                    <input type="radio" class="btn-check" name="areaId" th:id="'area' + ${area.sigla}"
+                           th:value="${area.id}" th:checked="${form.areaId == area.id}"
+                           th:attr="data-nome=${area.nome}">
+                    <label class="opcao-area" th:for="'area' + ${area.sigla}"
+                           th:classappend="${#fields.hasErrors('areaId')} ? 'is-invalid'">
+                        <span class="icone" th:classappend="${area.escuro} ? 'escuro'">
+                            <i class="bi" th:classappend="${area.icone}" aria-hidden="true"></i>
+                        </span>
+                        <span>
+                            <span class="titulo" th:text="${area.nome}">TI</span>
+                            <span class="descricao" th:text="${area.descricao}">Computador, impressora, internet, sistemas e acessos</span>
+                        </span>
+                    </label>
+                </div>
+            </div>
+            <div class="erro-campo" data-erro-de="areaId"><th:block th:errors="*{areaId}"></th:block></div>
+        </fieldset>
+
+        <div class="row g-3 gx-md-4">
+            <div class="col-md-6">
+                <label class="form-label" for="categoriaId">Categoria</label>
+                <select class="form-select" id="categoriaId" th:field="*{categoriaId}" required th:errorclass="is-invalid">
+                    <option value="">Selecione</option>
+                    <option th:each="categoria : ${categorias}" th:value="${categoria.id}"
+                            th:attr="data-area=${categoria.areaId}" th:text="${categoria.nome}">Impressora e scanner</option>
+                </select>
+                <div class="erro-campo" data-erro-de="categoriaId"><th:block th:errors="*{categoriaId}"></th:block></div>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label" for="localId">Local</label>
+                <select class="form-select" id="localId" th:field="*{localId}" required th:errorclass="is-invalid">
+                    <option value="">Selecione o local</option>
+                    <option th:each="local : ${locais}" th:value="${local.id}" th:text="${local.nome}">Sede administrativa</option>
+                </select>
+                <div class="erro-campo" data-erro-de="localId"><th:block th:errors="*{localId}"></th:block></div>
+            </div>
+            <div class="col-12">
+                <label class="form-label" for="titulo">Título</label>
+                <input class="form-control" id="titulo" type="text" th:field="*{titulo}"
+                       placeholder="Resuma em poucas palavras. Ex.: Impressora do financeiro não imprime"
+                       maxlength="120" required th:errorclass="is-invalid">
+                <div class="erro-campo" data-erro-de="titulo"><th:block th:errors="*{titulo}"></th:block></div>
+            </div>
+            <div class="col-12">
+                <label class="form-label" for="descricao">Descrição</label>
+                <textarea class="form-control" id="descricao" rows="4" th:field="*{descricao}"
+                          placeholder="O que aconteceu? Desde quando? Já tentou alguma coisa?"
+                          maxlength="4000" required th:errorclass="is-invalid"></textarea>
+                <div class="d-flex justify-content-between gap-2">
+                    <div class="erro-campo" data-erro-de="descricao"><th:block th:errors="*{descricao}"></th:block></div>
+                    <span class="form-text ms-auto tabular" id="contadorDescricao" aria-live="polite"></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Urgência em pílulas (padrão: Média) -->
+        <fieldset>
+            <legend class="form-label d-block">Qual a urgência?</legend>
+            <div class="d-flex gap-2 flex-wrap">
+                <th:block th:each="urg : ${urgencias}">
+                    <input type="radio" class="btn-check" name="urgencia" th:id="'urg' + ${urg.name()}"
+                           th:value="${urg.name()}" th:checked="${form.urgencia == urg}"
+                           th:attr="data-nome=${urg.descricao}">
+                    <label class="escolha-pilula" th:for="'urg' + ${urg.name()}" th:title="${urg.explicacao}"
+                           th:text="${urg.descricao}">Média</label>
+                </th:block>
+            </div>
+            <div class="erro-campo" data-erro-de="urgencia"><th:block th:errors="*{urgencia}"></th:block></div>
+        </fieldset>
+
+        <!-- Anexos (opcional) -->
+        <div class="d-flex flex-column gap-2">
+            <label class="area-anexo" for="anexos"
+                   th:classappend="${#fields.hasErrors('anexos')} ? 'is-invalid'">
+                <span class="icone"><i class="bi bi-upload" aria-hidden="true"></i></span>
+                <span>
+                    <span class="d-block fw-semibold">Anexar foto ou arquivo <span class="fw-normal text-secondary">(opcional)</span></span>
+                    <span class="d-block small text-secondary">Uma foto do problema ajuda muito. Até 3 arquivos de 10 MB (JPG, PNG, PDF, DOCX ou XLSX).</span>
+                </span>
+                <input type="file" class="visually-hidden" id="anexos" name="anexos" multiple
+                       accept=".jpg,.jpeg,.png,.pdf,.docx,.xlsx">
+            </label>
+            <ul class="lista-anexos" id="listaAnexos" aria-live="polite"></ul>
+            <div class="erro-campo" data-erro-de="anexos"><th:block th:errors="*{anexos}"></th:block></div>
+            <div class="alert alert-warning mb-0" role="status" th:if="${anexosPerdidos}">
+                <i class="bi bi-paperclip" aria-hidden="true"></i>
+                Por segurança, os anexos não ficam guardados quando o envio volta com erro.
+                Se quiser anexar, escolha os arquivos de novo.
+            </div>
+        </div>
+
+        <div class="rodape-acoes">
+            <button type="button" class="btn btn-secundario" data-ir-para="1">Voltar</button>
+            <button type="button" class="btn btn-primary" data-ir-para="3">Continuar</button>
+        </div>
+    </section>
+
+    <!-- ============================ ETAPA 3 ============================ -->
+    <section class="corpo painel-etapa" data-etapa="3" aria-labelledby="tituloEtapa3">
+        <div class="cabecalho">
+            <h2 id="tituloEtapa3">Revise antes de enviar</h2>
+            <p>Confira se está tudo certo. Você pode voltar e corrigir.</p>
+        </div>
+
+        <div class="alert alert-danger mb-0" role="alert" th:if="${erroGeral}">
+            <i class="bi bi-exclamation-circle" aria-hidden="true"></i>
+            <span th:text="${erroGeral}">Mensagem</span>
+        </div>
+
+        <!-- Preenchido pelo JavaScript com o que a pessoa digitou -->
+        <div class="bloco-revisao" id="resumo">
+            <div class="item"><span class="rotulo">Solicitante</span><span class="valor" data-resumo="solicitante">—</span></div>
+            <div class="item"><span class="rotulo">Contato</span><span class="valor" data-resumo="contato">—</span></div>
+            <div class="item"><span class="rotulo">Área</span><span class="valor" data-resumo="area">—</span></div>
+            <div class="item"><span class="rotulo">Urgência</span><span class="valor" data-resumo="urgencia">—</span></div>
+            <div class="item"><span class="rotulo">Categoria</span><span class="valor" data-resumo="categoria">—</span></div>
+            <div class="item"><span class="rotulo">Local</span><span class="valor" data-resumo="local">—</span></div>
+            <div class="item inteiro"><span class="rotulo">Título</span><span class="valor" data-resumo="titulo">—</span></div>
+            <div class="item inteiro"><span class="rotulo">Descrição</span><span class="valor texto-longo" data-resumo="descricao">—</span></div>
+            <div class="item inteiro" data-resumo-item="anexos" hidden><span class="rotulo">Anexos</span><span class="valor" data-resumo="anexos">—</span></div>
+        </div>
+
+        <div>
+            <div class="form-check d-flex gap-2 m-0 p-0">
+                <input class="form-check-input flex-shrink-0 m-0 consentimento" type="checkbox"
+                       id="consentimento" th:field="*{consentimento}" required th:errorclass="is-invalid">
+                <label class="form-check-label consentimento-texto" for="consentimento">
+                    Concordo que meus dados sejam usados apenas para o atendimento deste chamado.
+                </label>
+            </div>
+            <div class="erro-campo" data-erro-de="consentimento"><th:block th:errors="*{consentimento}"></th:block></div>
+        </div>
+
+        <div class="rodape-acoes">
+            <button type="button" class="btn btn-secundario" data-ir-para="2">Voltar</button>
+            <button type="submit" class="btn btn-primary fw-bold" id="btnEnviar">
+                <span class="spinner-border spinner-border-sm d-none" aria-hidden="true"></span>
+                <span class="texto">Enviar chamado</span>
+            </button>
+        </div>
+    </section>
+</form>
+</th:block>
+
+<th:block layout:fragment="scripts">
+    <script th:src="@{/js/abertura.js}"></script>
+</th:block>
+</body>
+</html>

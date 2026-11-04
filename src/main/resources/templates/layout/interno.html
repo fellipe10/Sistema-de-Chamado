@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="pt-BR"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#00491E">
+    <title layout:title-pattern="$CONTENT_TITLE · Central de Chamados">Central de Chamados</title>
+
+    <link rel="stylesheet" th:href="@{/vendor/bootstrap/bootstrap.min.css}">
+    <link rel="stylesheet" th:href="@{/vendor/bootstrap-icons/bootstrap-icons.min.css}">
+    <link rel="stylesheet" th:href="@{/css/tema-goias.css}">
+    <!-- CSS específico da página -->
+    <th:block layout:fragment="estilos"></th:block>
+</head>
+<body>
+<!--
+    Variáveis que o controller pode enviar para o layout:
+    - menuAtivo: 'painel' | 'fila' | 'meus' | 'relatorios' | 'configuracoes' | 'conta'
+    - totalFila: contador ao lado de "Fila de chamados" (chamados Novos da área).
+      Preenchido automaticamente para controllers com @TelaInterna (atendimento/ContadorFilaAdvice).
+-->
+<div class="layout-interno">
+
+    <!-- Menu lateral: fixo no computador, gaveta no celular -->
+    <aside class="menu-lateral offcanvas-lg offcanvas-start" tabindex="-1" id="menuLateral"
+           aria-label="Menu principal">
+        <div class="offcanvas-body">
+
+            <div class="d-flex align-items-start justify-content-between">
+                <a class="marca" th:href="@{/}">
+                    <img class="logo-img pequeno" th:src="@{/img/logo-goias.png}" alt="Goiás Esporte Clube"
+                         width="48" height="48">
+                    <span>
+                        <span class="marca-nome">Central de Chamados</span>
+                        <span class="marca-sub" sec:authorize="isAuthenticated()"
+                              th:text="${#authentication.principal.areaNome != null}
+                                       ? 'Área: ' + ${#authentication.principal.areaNome}
+                                       : 'Todas as áreas'">Área: TI</span>
+                    </span>
+                </a>
+                <button type="button" class="btn-close btn-close-white d-lg-none mt-1"
+                        data-bs-dismiss="offcanvas" data-bs-target="#menuLateral"
+                        aria-label="Fechar menu"></button>
+            </div>
+
+            <nav class="nav-menu" aria-label="Menu principal">
+                <a th:href="@{/painel}" sec:authorize="hasAnyRole('GESTOR','ADMIN')"
+                   th:classappend="${menuAtivo == 'painel'} ? 'ativo'">
+                    <i class="bi bi-grid-1x2" aria-hidden="true"></i> Painel
+                </a>
+                <a th:href="@{/atendimento}"
+                   th:classappend="${menuAtivo == 'fila'} ? 'ativo'">
+                    <i class="bi bi-list-ul" aria-hidden="true"></i>
+                    <span class="flex-grow-1">Fila de chamados</span>
+                    <span class="contador" th:if="${totalFila != null and totalFila > 0}"
+                          th:text="${totalFila}">18</span>
+                </a>
+                <a th:href="@{/atendimento(filtro='meus')}"
+                   th:classappend="${menuAtivo == 'meus'} ? 'ativo'">
+                    <i class="bi bi-person" aria-hidden="true"></i> Meus chamados
+                </a>
+                <a th:href="@{/painel/relatorios}" sec:authorize="hasAnyRole('GESTOR','ADMIN')"
+                   th:classappend="${menuAtivo == 'relatorios'} ? 'ativo'">
+                    <i class="bi bi-bar-chart" aria-hidden="true"></i> Relatórios
+                </a>
+                <a th:href="@{/admin}" sec:authorize="hasRole('ADMIN')"
+                   th:classappend="${menuAtivo == 'configuracoes'} ? 'ativo'">
+                    <i class="bi bi-gear" aria-hidden="true"></i> Configurações
+                </a>
+            </nav>
+
+            <!-- Usuário logado: nome, trocar senha e sair -->
+            <div class="usuario-logado" sec:authorize="isAuthenticated()">
+                <span class="avatar" th:text="${#authentication.principal.iniciais}">GT</span>
+                <span class="dados">
+                    <span class="nome" th:text="${#authentication.principal.nome}" th:title="${#authentication.principal.nome}">[Nome do usuário]</span>
+                    <span class="perfil" th:text="${#authentication.principal.descricaoPerfil}">Gestor · TI</span>
+                </span>
+                <a th:href="@{/conta/senha}" class="btn-sair" title="Trocar senha" aria-label="Trocar senha"
+                   th:classappend="${menuAtivo == 'conta'} ? 'ativo'">
+                    <i class="bi bi-key" aria-hidden="true"></i>
+                </a>
+                <form th:action="@{/logout}" method="post" class="m-0">
+                    <button type="submit" class="btn-sair" title="Sair" aria-label="Sair do sistema">
+                        <i class="bi bi-box-arrow-right" aria-hidden="true"></i>
+                    </button>
+                </form>
+            </div>
+        </div>
+    </aside>
+
+    <div class="coluna-conteudo">
+        <!-- Barra superior: só aparece no celular/tablet -->
+        <header class="topo-interno-celular d-lg-none">
+            <button type="button" class="btn-menu" data-bs-toggle="offcanvas" data-bs-target="#menuLateral"
+                    aria-controls="menuLateral" aria-label="Abrir menu">
+                <i class="bi bi-list" aria-hidden="true"></i>
+            </button>
+            <span class="titulo">Central de Chamados</span>
+        </header>
+
+        <main class="conteudo-interno">
+            <!-- Mensagens depois de uma ação (PRG): flash "sucesso" e "erro" -->
+            <div class="alert alert-success alert-dismissible fade show mb-0 aviso-acao" role="status"
+                 th:if="${sucesso != null}">
+                <i class="bi bi-check-circle" aria-hidden="true"></i>
+                <span th:text="${sucesso}">Ação concluída.</span>
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fechar"></button>
+            </div>
+            <div class="alert alert-danger alert-dismissible fade show mb-0 aviso-acao" role="alert"
+                 th:if="${erro != null}">
+                <i class="bi bi-exclamation-circle" aria-hidden="true"></i>
+                <span th:text="${erro}">Não foi possível concluir.</span>
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fechar"></button>
+            </div>
+            <th:block layout:fragment="conteudo"></th:block>
+        </main>
+    </div>
+</div>
+
+<script th:src="@{/vendor/bootstrap/bootstrap.bundle.min.js}"></script>
+<!-- JS específico da página (ex.: Chart.js no painel) -->
+<th:block layout:fragment="scripts"></th:block>
+</body>
+</html>

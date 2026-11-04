@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="pt-BR"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/publico}">
+<head>
+    <title>Chamado aberto</title>
+</head>
+<body>
+
+<div layout:fragment="destaque">
+    <h1>Precisa de ajuda? Abra um chamado.</h1>
+    <p>Conte o que está acontecendo e a equipe de TI ou de Manutenção vai atender você. Não precisa de login.</p>
+</div>
+
+<th:block layout:fragment="conteudo">
+    <div class="corpo tela-sucesso">
+        <span class="icone-sucesso"><i class="bi bi-check-lg" aria-hidden="true"></i></span>
+        <div>
+            <h2>Chamado aberto!</h2>
+            <p>Guarde este código para acompanhar o andamento.</p>
+        </div>
+        <div class="caixa-protocolo">
+            <span class="codigo" id="codigoChamado" th:text="${protocolo}">TI-2026-7K3F</span>
+            <button type="button" class="btn btn-primary" id="btnCopiar" data-copiar="codigoChamado"
+                    aria-label="Copiar código">
+                <i class="bi bi-copy" aria-hidden="true"></i> <span class="texto">Copiar</span>
+            </button>
+        </div>
+        <p class="aviso-copia" id="avisoCopia" role="status" aria-live="polite"></p>
+        <div class="d-flex gap-2 flex-wrap justify-content-center pt-1">
+            <a class="btn btn-escuro" th:href="@{/consultar(codigo=${protocolo})}">Acompanhar chamado</a>
+            <a class="btn btn-secundario" th:href="@{/abrir}">Abrir outro chamado</a>
+        </div>
+    </div>
+</th:block>
+
+<th:block layout:fragment="scripts">
+    <script th:src="@{/js/copiar-codigo.js}"></script>
+</th:block>
+</body>
+</html>

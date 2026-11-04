@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="pt-BR" xmlns:th="http://www.thymeleaf.org">
+<body>
+<!--
+    Fragmentos comuns do painel e dos relatórios.
+
+    filtroPeriodo: seletor segmentado Hoje · 7 dias · 30 dias · 6 meses · Período (de/até).
+      opcoes   → lista de OpcaoPeriodo (rótulo, url, ativo)
+      periodo  → PeriodoPainel atual
+      acao     → caminho do formulário "Período" (/painel ou /painel/relatorios)
+      ocultos  → Map de campos escondidos (área do admin, filtros dos relatórios)
+-->
+<div th:fragment="filtroPeriodo(opcoes, periodo, acao, ocultos)" class="segmentado filtro-periodo"
+     role="group" aria-label="Período">
+    <a th:each="o : ${opcoes}" th:href="@{${o.url()}}" th:text="${o.rotulo()}"
+       th:classappend="${o.ativo()} ? 'ativo'" th:attr="aria-current=${o.ativo()} ? 'true'">30 dias</a>
+    <details class="periodo-personalizado" th:attr="open=${periodo.erro() != null} ? 'open'">
+        <summary th:classappend="${periodo.tipo().name() == 'PERSONALIZADO'} ? 'ativo'"
+                 th:attr="aria-label=${periodo.tipo().name() == 'PERSONALIZADO'} ? 'Período personalizado: ' + ${periodo.descricao()} : 'Escolher período'">
+            <i class="bi bi-calendar3" aria-hidden="true"></i>
+            <span th:text="${periodo.tipo().name() == 'PERSONALIZADO'} ? ${periodo.rotuloPersonalizado()} : 'Período'">Período</span>
+        </summary>
+        <form class="caixa-periodo" method="get" th:action="@{${acao}}">
+            <input type="hidden" th:each="e : ${ocultos}" th:name="${e.key}" th:value="${e.value}">
+            <div class="d-flex gap-2">
+                <div class="flex-grow-1">
+                    <label class="form-label" for="periodoDe">De</label>
+                    <input class="form-control" type="date" id="periodoDe" name="de" required
+                           th:value="${periodo.de()}" th:attr="max=${hoje}">
+                </div>
+                <div class="flex-grow-1">
+                    <label class="form-label" for="periodoAte">Até</label>
+                    <input class="form-control" type="date" id="periodoAte" name="ate" required
+                           th:value="${periodo.ate()}" th:attr="max=${hoje}">
+                </div>
+            </div>
+            <p class="ajuda-acao m-0">Até 2 dias: gráfico por hora · até 45 dias: por dia · acima: por mês.</p>
+            <button type="submit" class="btn btn-primary w-100">Aplicar período</button>
+        </form>
+    </details>
+</div>
+
+<!-- Seletor de área (só ADMIN). Muda sozinho ao escolher (com JavaScript); sem JS, botão "Ver". -->
+<form th:fragment="seletorArea(area, acao, ocultos)" th:if="${area.podeEscolher()}"
+      class="seletor-area" method="get" th:action="@{${acao}}">
+    <input type="hidden" th:each="e : ${ocultos}" th:name="${e.key}" th:value="${e.value}">
+    <label class="visually-hidden" for="seletorArea">Área</label>
+    <i class="bi bi-diagram-3" aria-hidden="true"></i>
+    <select class="form-select" id="seletorArea" name="area" data-enviar-ao-mudar>
+        <option th:each="o : ${area.opcoes()}" th:value="${o.id()}" th:text="${o.nome()}"
+                th:selected="${o.id() == area.id()}">TI</option>
+    </select>
+    <noscript><button type="submit" class="btn btn-secundario">Ver</button></noscript>
+</form>
+</body>
+</html>

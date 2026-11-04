@@ -1,0 +1,106 @@
+# ============================================================
+# Sistema de Chamado - Goiás Esporte Clube
+# Configuração comum a todos os perfis
+# ============================================================
+spring:
+  application:
+    name: chamados
+
+  profiles:
+    default: dev
+
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        format_sql: true
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: false
+
+  jackson:
+    time-zone: America/Sao_Paulo
+
+  thymeleaf:
+    cache: true
+
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      # 3 arquivos de 10 MB + campos de texto do formulário (folga para não recusar no limite exato)
+      max-request-size: 35MB
+
+  web:
+    locale: pt_BR
+    locale-resolver: fixed
+
+# ------------------------------------------------------------
+# Regras do sistema de chamados
+# ------------------------------------------------------------
+chamados:
+  fechamento-automatico:
+    # Chamado RESOLVIDO há N dias úteis (1 dia útil = 480 min do expediente da área) vira FECHADO.
+    # 0 desliga. Para testar, use 1 e primeira-execucao: PT10S.
+    dias-uteis: 5
+    # Primeira execução depois de subir e intervalo entre execuções (formato ISO-8601).
+    primeira-execucao: PT1M
+    intervalo: PT1H
+  feriados:
+    # Aviso "o próximo ano ainda não tem feriados" (Etapa 5). Vazio = usa o ano de hoje.
+    # Só para testar o aviso sem esperar a virada do ano (ex.: 2027 → avisa se 2028 não tiver feriados).
+    ano-de-referencia: ""
+
+server:
+  port: 8081
+  servlet:
+    session:
+      timeout: 8h
+  tomcat:
+    # Lê o envio inteiro mesmo quando passa do limite de upload, para conseguir
+    # responder com uma mensagem amigável em vez de cortar a conexão.
+    max-swallow-size: -1
+  error:
+    # Páginas próprias em templates/error/ (403, 404, 500 e error.html).
+    # Nunca mostrar detalhes técnicos para quem está usando o sistema.
+    whitelabel:
+      enabled: false
+    include-stacktrace: never
+    include-message: never
+    include-exception: false
+    include-binding-errors: never
+
+---
+# ============================================================
+# Perfil dev (máquina local)
+# ============================================================
+spring:
+  config:
+    activate:
+      on-profile: dev
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/chamados
+    username: chamados
+    password: chamados
+
+  jpa:
+    show-sql: false
+
+  thymeleaf:
+    cache: false
+
+chamados:
+  anexos:
+    # Pasta FORA do projeto onde os anexos são gravados (nome gerado: UUID + extensão).
+    # Em produção, definir no perfil/variável de ambiente do servidor.
+    diretorio: C:/chamados-anexos
+
+logging:
+  level:
+    br.com.goias.chamados: DEBUG
+    org.flywaydb: INFO
+    org.hibernate.SQL: INFO

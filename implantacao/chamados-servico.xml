@@ -1,0 +1,50 @@
+<!--
+  Serviço do Windows da Central de Chamados (WinSW 2.12.0)
+
+  Como usar (ver claude/guia-implantacao.md, passo 6):
+  1. Baixe WinSW-x64.exe da versão 2.12.0 em https://github.com/winsw/winsw/releases/tag/v2.12.0
+  2. Copie para D:\chamados\app\ e renomeie para chamados-servico.exe
+  3. Copie ESTE arquivo para a mesma pasta, com o mesmo nome: chamados-servico.xml
+  4. Troque a senha do banco abaixo (TROQUE-PELA-SENHA-DO-BANCO)
+  5. No Prompt de Comando como administrador:  cd /d D:\chamados\app  e  chamados-servico.exe install
+
+  ATENÇÃO: este arquivo guarda a senha do banco. Deixe a pasta D:\chamados\app acessível só para administradores.
+-->
+<service>
+  <id>central-chamados</id>
+  <name>Central de Chamados (Goiás EC)</name>
+  <description>Sistema de chamados da TI e da Manutenção - porta 8081</description>
+
+  <!-- Java 17 instalado pelo Temurin (ajuste se instalou em outra pasta) -->
+  <executable>C:\Program Files\Eclipse Adoptium\jdk-17.0.17.10-hotspot\bin\java.exe</executable>
+  <arguments>-Xms256m -Xmx1024m -Dfile.encoding=UTF-8 -jar "D:\chamados\app\chamados.jar" --spring.profiles.active=prod</arguments>
+  <workingdirectory>D:\chamados\app</workingdirectory>
+
+  <!-- Variáveis de ambiente do sistema (application-prod.yml) -->
+  <env name="SPRING_PROFILES_ACTIVE" value="prod"/>
+  <env name="CHAMADOS_DB_URL" value="jdbc:postgresql://localhost:5432/chamados"/>
+  <env name="CHAMADOS_DB_USER" value="chamados"/>
+  <env name="CHAMADOS_DB_PASSWORD" value="TROQUE-PELA-SENHA-DO-BANCO"/>
+  <env name="CHAMADOS_ANEXOS_DIR" value="D:\chamados\anexos"/>
+  <env name="CHAMADOS_LOG_DIR" value="D:\chamados\logs"/>
+
+  <!-- Liga sozinho com o Windows, depois do PostgreSQL -->
+  <startmode>Automatic</startmode>
+  <delayedAutoStart>true</delayedAutoStart>
+  <depend>postgresql-x64-17</depend>
+
+  <!-- Se o sistema cair, o Windows liga de novo depois de 20 segundos -->
+  <onfailure action="restart" delay="20 sec"/>
+  <onfailure action="restart" delay="60 sec"/>
+  <resetfailure>1 hour</resetfailure>
+
+  <!-- Dá tempo de o sistema terminar o que está fazendo ao parar o serviço -->
+  <stoptimeout>30 sec</stoptimeout>
+
+  <!-- Saída do console (o log principal fica em D:\chamados\logs\chamados.log) -->
+  <logpath>D:\chamados\logs\servico</logpath>
+  <log mode="roll-by-size">
+    <sizeThreshold>10240</sizeThreshold>
+    <keepFiles>5</keepFiles>
+  </log>
+</service>

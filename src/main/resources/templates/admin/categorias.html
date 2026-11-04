@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="pt-BR"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/interno}">
+<head>
+    <title>Categorias</title>
+</head>
+<body>
+<th:block layout:fragment="conteudo" th:with="editando=${edicao != null}">
+
+    <div class="cabecalho-pagina">
+        <div>
+            <a class="voltar-admin" th:href="@{/admin}"><i class="bi bi-arrow-left" aria-hidden="true"></i> Configurações</a>
+            <h1>Categorias</h1>
+            <p>Tipos de problema de cada área. Aparecem no 2º passo do formulário, depois que a pessoa escolhe a área.</p>
+        </div>
+    </div>
+
+    <div class="grade-cadastro">
+        <div class="d-flex flex-column gap-4">
+            <section class="card">
+                <form class="card-body filtros-admin" method="get" th:action="@{/admin/categorias}" role="search">
+                    <div class="campo-busca">
+                        <label class="form-label" for="busca">Buscar</label>
+                        <div class="input-icone">
+                            <i class="bi bi-search" aria-hidden="true"></i>
+                            <input class="form-control" id="busca" name="busca" type="search" maxlength="100"
+                                   th:value="${busca}" placeholder="Nome da categoria">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="form-label" for="area">Área</label>
+                        <select class="form-select" id="area" name="area">
+                            <option value="">Todas</option>
+                            <option th:each="a : ${areas}" th:value="${a.id()}" th:text="${a.rotulo()}"
+                                    th:selected="${filtroArea == a.id()}">TI</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="form-label" for="situacao">Situação</label>
+                        <select class="form-select" id="situacao" name="situacao">
+                            <option th:each="s : ${situacoes}" th:value="${s.parametro}" th:text="${s.rotulo}"
+                                    th:selected="${s == situacao}">Ativos</option>
+                        </select>
+                    </div>
+                    <div class="botoes-filtro">
+                        <button type="submit" class="btn btn-primary"><i class="bi bi-funnel" aria-hidden="true"></i> Filtrar</button>
+                        <a class="btn btn-secundario" th:href="@{/admin/categorias}"
+                           th:if="${busca != null or filtroArea != null or situacao.name() != 'ATIVOS'}">Limpar</a>
+                    </div>
+                </form>
+            </section>
+
+            <section class="card">
+                <div class="card-body d-flex flex-column gap-3">
+                    <div class="vazio" th:if="${#lists.isEmpty(categorias)}">
+                        <span class="icone" aria-hidden="true"><i class="bi bi-tags"></i></span>
+                        <strong>Nenhuma categoria encontrada.</strong>
+                        <span class="text-secondary small" th:if="${filtroArea != null}">Cadastre a primeira no formulário ao lado.</span>
+                    </div>
+
+                    <div class="tabela-admin" th:unless="${#lists.isEmpty(categorias)}">
+                        <table class="table tabela-limpa">
+                            <thead>
+                            <tr>
+                                <th scope="col">Categoria</th>
+                                <th scope="col">Área</th>
+                                <th scope="col" class="text-end">Usada em</th>
+                                <th scope="col">Situação</th>
+                                <th scope="col"><span class="visually-hidden">Ações</span></th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            <tr th:each="c : ${categorias}" th:classappend="${!c.ativo()} ? 'inativo'">
+                                <td class="titulo" th:text="${c.nome()}">Impressora e scanner</td>
+                                <td th:text="${c.areaNome()} + (${c.areaAtiva()} ? '' : ' (inativa)')">TI</td>
+                                <td class="text-end uso tabular"
+                                    th:text="${c.chamados()} + (${c.chamados() == 1} ? ' chamado' : ' chamados')">3 chamados</td>
+                                <td><span class="badge-pilula com-ponto" th:classappend="${c.ativo()} ? 'sla-ok' : 'sla-sem'"
+                                          th:text="${c.ativo()} ? 'Ativa' : 'Inativa'">Ativa</span></td>
+                                <td>
+                                    <div class="acoes-linha">
+                                        <a class="btn btn-sm btn-secundario btn-icone" title="Editar" aria-label="Editar"
+                                           th:href="@{/admin/categorias(editar=${c.id()}, area=${filtroArea}, busca=${busca}, situacao=${situacao.parametro})}"><i class="bi bi-pencil" aria-hidden="true"></i></a>
+                                        <form method="post" th:if="${c.ativo()}"
+                                              th:action="@{/admin/categorias/{id}/desativar(id=${c.id()}, filtroArea=${filtroArea}, busca=${busca}, situacao=${situacao.parametro})}">
+                                            <button type="submit" class="btn btn-sm btn-secundario btn-icone" title="Desativar" aria-label="Desativar"><i class="bi bi-slash-circle" aria-hidden="true"></i></button>
+                                        </form>
+                                        <form method="post" th:unless="${c.ativo()}"
+                                              th:action="@{/admin/categorias/{id}/reativar(id=${c.id()}, filtroArea=${filtroArea}, busca=${busca}, situacao=${situacao.parametro})}">
+                                            <button type="submit" class="btn btn-sm btn-outline-primary btn-icone" title="Reativar" aria-label="Reativar"><i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i></button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <ul class="cards-admin" th:unless="${#lists.isEmpty(categorias)}">
+                        <li th:each="c : ${categorias}">
+                            <div class="card-chamado">
+                                <span class="linha-topo">
+                                    <span class="titulo" th:text="${c.nome()}">Impressora e scanner</span>
+                                    <span class="badge-pilula com-ponto" th:classappend="${c.ativo()} ? 'sla-ok' : 'sla-sem'"
+                                          th:text="${c.ativo()} ? 'Ativa' : 'Inativa'">Ativa</span>
+                                </span>
+                                <span class="subtitulo" th:text="${c.areaNome()} + ' · usada em ' + ${c.chamados()} + (${c.chamados() == 1} ? ' chamado' : ' chamados')">TI · usada em 3 chamados</span>
+                                <div class="acoes-linha justify-content-start">
+                                    <a class="btn btn-sm btn-secundario"
+                                       th:href="@{/admin/categorias(editar=${c.id()}, area=${filtroArea}, busca=${busca}, situacao=${situacao.parametro})}">Editar</a>
+                                    <form method="post" th:if="${c.ativo()}"
+                                          th:action="@{/admin/categorias/{id}/desativar(id=${c.id()}, filtroArea=${filtroArea}, busca=${busca}, situacao=${situacao.parametro})}">
+                                        <button type="submit" class="btn btn-sm btn-secundario">Desativar</button>
+                                    </form>
+                                    <form method="post" th:unless="${c.ativo()}"
+                                          th:action="@{/admin/categorias/{id}/reativar(id=${c.id()}, filtroArea=${filtroArea}, busca=${busca}, situacao=${situacao.parametro})}">
+                                        <button type="submit" class="btn btn-sm btn-outline-primary">Reativar</button>
+                                    </form>
+                                </div>
+                            </div>
+                        </li>
+                    </ul>
+                    <p class="text-secondary small mb-0 tabular" th:unless="${#lists.isEmpty(categorias)}"
+                       th:text="${#lists.size(categorias)} + (${#lists.size(categorias) == 1} ? ' categoria' : ' categorias')">20 categorias</p>
+                </div>
+            </section>
+        </div>
+
+        <!-- Nova / editar -->
+        <section class="card card-form" th:classappend="${editando} ? 'editando'">
+            <form class="card-body d-flex flex-column gap-3" method="post" th:action="@{/admin/categorias}" novalidate>
+                <h2 class="card-titulo" th:text="${editando} ? 'Editar categoria' : 'Nova categoria'">Nova categoria</h2>
+                <input type="hidden" name="id" th:value="${editando} ? ${edicao.id()}">
+                <input type="hidden" name="filtroArea" th:value="${filtroArea}">
+                <input type="hidden" name="busca" th:value="${busca}">
+                <input type="hidden" name="situacao" th:value="${situacao.parametro}">
+                <div>
+                    <label class="form-label" for="areaId">Área</label>
+                    <select class="form-select" id="areaId" name="areaId"
+                            th:classappend="${erros['areaId'] != null} ? 'is-invalid'">
+                        <option value="">Escolha a área</option>
+                        <option th:each="a : ${areas}" th:value="${a.id()}" th:text="${a.rotulo()}"
+                                th:selected="${areaForm == a.id()}"
+                                th:disabled="${(!a.ativo() and areaForm != a.id()) or (editando and edicao.areaTravada() and edicao.areaId() != a.id())}">TI</option>
+                    </select>
+                    <div class="erro-campo" th:text="${erros['areaId']}"></div>
+                    <p class="form-text mb-0" th:if="${editando and edicao.areaTravada()}">
+                        <i class="bi bi-lock" aria-hidden="true"></i> Já usada em chamados: a área não muda.</p>
+                </div>
+                <div>
+                    <label class="form-label" for="nome">Nome</label>
+                    <input class="form-control" id="nome" name="nome" type="text" maxlength="100" required
+                           th:value="${nome}" placeholder="Ex.: Telefonia"
+                           th:classappend="${erros['nome'] != null} ? 'is-invalid'">
+                    <div class="erro-campo" th:text="${erros['nome']}"></div>
+                </div>
+                <div class="d-flex gap-2 justify-content-end flex-wrap">
+                    <a class="btn btn-secundario" th:if="${editando}"
+                       th:href="@{/admin/categorias(area=${filtroArea}, busca=${busca}, situacao=${situacao.parametro})}">Cancelar</a>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi" th:classappend="${editando} ? 'bi-check-lg' : 'bi-plus-lg'" aria-hidden="true"></i>
+                        <span th:text="${editando} ? 'Salvar' : 'Cadastrar'">Cadastrar</span>
+                    </button>
+                </div>
+            </form>
+        </section>
+    </div>
+</th:block>
+</body>
+</html>

@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="pt-BR"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/interno}">
+<head>
+    <title th:text="${t.titulo()}">Setores</title>
+</head>
+<body>
+<!--
+    Tela comum de setores e locais (admin/comum/CadastroNomeController).
+    Variáveis: t (textos), itens, busca, situacao, situacoes, editarId, nome, erros.
+-->
+<th:block layout:fragment="conteudo" th:with="editando=${editarId != null}">
+
+    <div class="cabecalho-pagina">
+        <div>
+            <a class="voltar-admin" th:href="@{/admin}"><i class="bi bi-arrow-left" aria-hidden="true"></i> Configurações</a>
+            <h1 th:text="${t.titulo()}">Setores</h1>
+            <p th:text="${t.descricao()}">De onde vem quem abre o chamado.</p>
+        </div>
+    </div>
+
+    <div class="grade-cadastro">
+        <div class="d-flex flex-column gap-4">
+            <!-- Busca e situação -->
+            <section class="card">
+                <form class="card-body filtros-admin" method="get" th:action="@{${t.rota()}}" role="search">
+                    <div class="campo-busca">
+                        <label class="form-label" for="busca">Buscar</label>
+                        <div class="input-icone">
+                            <i class="bi bi-search" aria-hidden="true"></i>
+                            <input class="form-control" id="busca" name="busca" type="search" maxlength="100"
+                                   th:value="${busca}" placeholder="Nome">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="form-label" for="situacao">Situação</label>
+                        <select class="form-select" id="situacao" name="situacao">
+                            <option th:each="s : ${situacoes}" th:value="${s.parametro}" th:text="${s.rotulo}"
+                                    th:selected="${s == situacao}">Ativos</option>
+                        </select>
+                    </div>
+                    <div class="botoes-filtro">
+                        <button type="submit" class="btn btn-primary"><i class="bi bi-funnel" aria-hidden="true"></i> Filtrar</button>
+                        <a class="btn btn-secundario" th:href="@{${t.rota()}}"
+                           th:if="${busca != null or situacao.name() != 'ATIVOS'}">Limpar</a>
+                    </div>
+                </form>
+            </section>
+
+            <!-- Lista -->
+            <section class="card">
+                <div class="card-body d-flex flex-column gap-3">
+                    <div class="vazio" th:if="${#lists.isEmpty(itens)}">
+                        <span class="icone" aria-hidden="true"><i class="bi" th:classappend="${t.icone()}"></i></span>
+                        <strong>Nada encontrado.</strong>
+                    </div>
+
+                    <div class="tabela-admin" th:unless="${#lists.isEmpty(itens)}">
+                        <table class="table tabela-limpa">
+                            <thead>
+                            <tr>
+                                <th scope="col">Nome</th>
+                                <th scope="col" class="text-end">Usado em</th>
+                                <th scope="col">Situação</th>
+                                <th scope="col"><span class="visually-hidden">Ações</span></th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            <tr th:each="i : ${itens}" th:classappend="${!i.ativo()} ? 'inativo'">
+                                <td class="titulo" th:text="${i.nome()}">Financeiro</td>
+                                <td class="text-end uso tabular"
+                                    th:text="${i.chamados()} + (${i.chamados() == 1} ? ' chamado' : ' chamados')">3 chamados</td>
+                                <td><span class="badge-pilula com-ponto" th:classappend="${i.ativo()} ? 'sla-ok' : 'sla-sem'"
+                                          th:text="${i.ativo()} ? 'Ativo' : 'Inativo'">Ativo</span></td>
+                                <td>
+                                    <div class="acoes-linha">
+                                        <a class="btn btn-sm btn-secundario btn-icone" title="Editar" aria-label="Editar"
+                                           th:href="@{${t.rota()}(editar=${i.id()}, busca=${busca}, situacao=${situacao.parametro})}"><i class="bi bi-pencil" aria-hidden="true"></i></a>
+                                        <form method="post" th:if="${i.ativo()}"
+                                              th:action="@{${t.rota()} + '/' + ${i.id()} + '/desativar'(busca=${busca}, situacao=${situacao.parametro})}">
+                                            <button type="submit" class="btn btn-sm btn-secundario btn-icone" title="Desativar" aria-label="Desativar"><i class="bi bi-slash-circle" aria-hidden="true"></i></button>
+                                        </form>
+                                        <form method="post" th:unless="${i.ativo()}"
+                                              th:action="@{${t.rota()} + '/' + ${i.id()} + '/reativar'(busca=${busca}, situacao=${situacao.parametro})}">
+                                            <button type="submit" class="btn btn-sm btn-outline-primary btn-icone" title="Reativar" aria-label="Reativar"><i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i></button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <ul class="cards-admin" th:unless="${#lists.isEmpty(itens)}">
+                        <li th:each="i : ${itens}">
+                            <div class="card-chamado">
+                                <span class="linha-topo">
+                                    <span class="titulo" th:text="${i.nome()}">Financeiro</span>
+                                    <span class="badge-pilula com-ponto" th:classappend="${i.ativo()} ? 'sla-ok' : 'sla-sem'"
+                                          th:text="${i.ativo()} ? 'Ativo' : 'Inativo'">Ativo</span>
+                                </span>
+                                <span class="subtitulo" th:text="'Usado em ' + ${i.chamados()} + (${i.chamados() == 1} ? ' chamado' : ' chamados')">Usado em 3 chamados</span>
+                                <div class="acoes-linha justify-content-start">
+                                    <a class="btn btn-sm btn-secundario"
+                                       th:href="@{${t.rota()}(editar=${i.id()}, busca=${busca}, situacao=${situacao.parametro})}">Editar</a>
+                                    <form method="post" th:if="${i.ativo()}"
+                                          th:action="@{${t.rota()} + '/' + ${i.id()} + '/desativar'(busca=${busca}, situacao=${situacao.parametro})}">
+                                        <button type="submit" class="btn btn-sm btn-secundario">Desativar</button>
+                                    </form>
+                                    <form method="post" th:unless="${i.ativo()}"
+                                          th:action="@{${t.rota()} + '/' + ${i.id()} + '/reativar'(busca=${busca}, situacao=${situacao.parametro})}">
+                                        <button type="submit" class="btn btn-sm btn-outline-primary">Reativar</button>
+                                    </form>
+                                </div>
+                            </div>
+                        </li>
+                    </ul>
+                    <p class="text-secondary small mb-0 tabular" th:unless="${#lists.isEmpty(itens)}"
+                       th:text="${#lists.size(itens)} + (${#lists.size(itens) == 1} ? ' item' : ' itens')">12 itens</p>
+                </div>
+            </section>
+        </div>
+
+        <!-- Novo / editar -->
+        <section class="card card-form" th:classappend="${editando} ? 'editando'" id="formulario">
+            <form class="card-body d-flex flex-column gap-3" method="post" th:action="@{${t.rota()}}" novalidate>
+                <h2 class="card-titulo" th:text="${editando} ? 'Editar ' + ${t.singular()} : ${t.novo()}">Novo setor</h2>
+                <input type="hidden" name="id" th:value="${editarId}">
+                <input type="hidden" name="busca" th:value="${busca}">
+                <input type="hidden" name="situacao" th:value="${situacao.parametro}">
+                <div>
+                    <label class="form-label" for="nome">Nome</label>
+                    <input class="form-control" id="nome" name="nome" type="text" maxlength="100" required
+                           th:value="${nome}" th:placeholder="${t.exemplo()}"
+                           th:classappend="${erros['nome'] != null} ? 'is-invalid'" th:autofocus="${editando or erros['nome'] != null}">
+                    <div class="erro-campo" th:text="${erros['nome']}"></div>
+                </div>
+                <p class="form-text mb-0" th:if="${editando}">Mudar o nome muda também como ele aparece nos chamados antigos.</p>
+                <div class="d-flex gap-2 justify-content-end flex-wrap">
+                    <a class="btn btn-secundario" th:if="${editando}"
+                       th:href="@{${t.rota()}(busca=${busca}, situacao=${situacao.parametro})}">Cancelar</a>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi" th:classappend="${editando} ? 'bi-check-lg' : 'bi-plus-lg'" aria-hidden="true"></i>
+                        <span th:text="${editando} ? 'Salvar' : 'Cadastrar'">Cadastrar</span>
+                    </button>
+                </div>
+            </form>
+        </section>
+    </div>
+</th:block>
+</body>
+</html>

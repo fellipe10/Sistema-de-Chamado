@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="pt-BR"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/interno}">
+<head>
+    <title>Recalcular prazos</title>
+</head>
+<body>
+<th:block layout:fragment="conteudo">
+
+    <div class="cabecalho-pagina">
+        <div>
+            <a class="voltar-admin" th:href="@{${voltar}}"><i class="bi bi-arrow-left" aria-hidden="true"></i> Voltar</a>
+            <h1>Recalcular prazos</h1>
+            <p>
+                Chamados em andamento
+                <th:block th:if="${area != null}">da área <strong th:text="${area.nome}">TI</strong></th:block>
+                <th:block th:if="${area == null}">de <strong>todas as áreas</strong></th:block>
+                · depois de mudar <span th:text="${origem.nome}">SLA</span>.
+            </p>
+        </div>
+    </div>
+
+    <section class="card card-formulario-estreito">
+        <div class="card-body d-flex flex-column gap-4">
+            <div class="d-flex gap-3 align-items-center">
+                <span class="numero-grande" th:text="${previa.afetados()}">3</span>
+                <div>
+                    <strong th:text="${previa.afetados() == 1} ? 'chamado vai ter o prazo alterado' : 'chamados vão ter o prazo alterado'">
+                        chamados vão ter o prazo alterado</strong>
+                    <p class="mb-0 text-secondary small"
+                       th:text="'de ' + ${previa.emAndamento()} + (${previa.emAndamento() == 1} ? ' chamado em andamento.' : ' chamados em andamento.')">
+                        de 12 chamados em andamento.</p>
+                </div>
+            </div>
+
+            <ul class="small text-secondary mb-0 ps-3 d-flex flex-column gap-1">
+                <li>O prazo de cada chamado é refeito a partir da data de abertura, com o SLA, o expediente e os feriados de agora
+                    (e o tempo que já ficou pausado em "Aguardando o solicitante").</li>
+                <li>Chamados resolvidos e fechados não mudam: o "resolvido no prazo / com atraso" deles fica como está.</li>
+                <li>Cada chamado alterado ganha um comentário interno (só a equipe vê) dizendo que o prazo foi recalculado e por quem.</li>
+            </ul>
+
+            <div class="alert alert-success mb-0" role="status" th:if="${previa.afetados() == 0}">
+                <i class="bi bi-check-circle" aria-hidden="true"></i>
+                Os prazos já estão de acordo com as regras de agora. Não há nada para recalcular.
+            </div>
+
+            <form method="post" th:action="@{/admin/recalcular}" class="d-flex gap-2 justify-content-end flex-wrap pt-2 borda-topo">
+                <input type="hidden" name="origem" th:value="${origem.parametro}">
+                <input type="hidden" name="area" th:value="${area != null} ? ${area.id}">
+                <a class="btn btn-secundario" th:href="@{${voltar}}">Cancelar</a>
+                <button type="submit" class="btn btn-primary" th:disabled="${previa.afetados() == 0}">
+                    <i class="bi bi-arrow-repeat" aria-hidden="true"></i>
+                    <span th:text="${previa.afetados() == 0} ? 'Nada para recalcular'
+                                 : 'Recalcular ' + ${previa.afetados()} + (${previa.afetados() == 1} ? ' chamado' : ' chamados')">Recalcular 3 chamados</span>
+                </button>
+            </form>
+        </div>
+    </section>
+</th:block>
+</body>
+</html>

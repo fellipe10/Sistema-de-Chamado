@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="pt-BR"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/interno}">
+<head>
+    <title>Trocar senha</title>
+</head>
+<body>
+<th:block layout:fragment="conteudo">
+
+    <div class="cabecalho-pagina">
+        <div>
+            <h1 th:text="${obrigatoria} ? 'Crie sua senha' : 'Trocar senha'">Trocar senha</h1>
+            <p th:text="${obrigatoria}
+                        ? 'Antes de continuar, troque a senha que você recebeu por uma senha só sua.'
+                        : 'Escolha uma senha nova para entrar no sistema.'">Escolha uma senha nova.</p>
+        </div>
+    </div>
+
+    <section class="card card-formulario-estreito">
+        <form class="card-body d-flex flex-column gap-4" th:action="@{/conta/senha}" method="post" novalidate>
+
+            <div class="alert alert-warning mb-0" role="status" th:if="${obrigatoria}">
+                <i class="bi bi-shield-lock" aria-hidden="true"></i>
+                Por segurança, é obrigatório trocar a senha no primeiro acesso.
+            </div>
+
+            <div>
+                <label class="form-label" for="senhaAtual">Senha atual</label>
+                <div class="campo-senha">
+                    <input class="form-control" id="senhaAtual" name="senhaAtual" type="password"
+                           autocomplete="current-password" maxlength="100" required autofocus
+                           th:classappend="${erros['senhaAtual'] != null} ? 'is-invalid'"
+                           th:attr="aria-describedby=${erros['senhaAtual'] != null} ? 'erroSenhaAtual'">
+                    <button type="button" class="mostrar-senha" data-mostrar-senha="senhaAtual"
+                            aria-label="Mostrar senha" title="Mostrar senha"><i class="bi bi-eye" aria-hidden="true"></i></button>
+                </div>
+                <div class="erro-campo" id="erroSenhaAtual" th:text="${erros['senhaAtual']}"></div>
+            </div>
+
+            <div>
+                <label class="form-label" for="novaSenha">Senha nova</label>
+                <div class="campo-senha">
+                    <input class="form-control" id="novaSenha" name="novaSenha" type="password"
+                           autocomplete="new-password" maxlength="64" required
+                           th:classappend="${erros['novaSenha'] != null} ? 'is-invalid'"
+                           aria-describedby="regrasSenha erroNovaSenha">
+                    <button type="button" class="mostrar-senha" data-mostrar-senha="novaSenha"
+                            aria-label="Mostrar senha" title="Mostrar senha"><i class="bi bi-eye" aria-hidden="true"></i></button>
+                </div>
+                <div class="erro-campo" id="erroNovaSenha" th:text="${erros['novaSenha']}"></div>
+                <ul class="regras-senha" id="regrasSenha">
+                    <li data-regra="tamanho"><i class="bi bi-circle" aria-hidden="true"></i>
+                        <span th:text="'Pelo menos ' + ${tamanhoMinimo} + ' caracteres'">Pelo menos 8 caracteres</span></li>
+                    <li data-regra="letra"><i class="bi bi-circle" aria-hidden="true"></i> Pelo menos uma letra</li>
+                    <li data-regra="numero"><i class="bi bi-circle" aria-hidden="true"></i> Pelo menos um número</li>
+                    <li><i class="bi bi-circle" aria-hidden="true"></i> Diferente da senha atual</li>
+                </ul>
+            </div>
+
+            <div>
+                <label class="form-label" for="confirmacao">Repita a senha nova</label>
+                <input class="form-control" id="confirmacao" name="confirmacao" type="password"
+                       autocomplete="new-password" maxlength="64" required
+                       th:classappend="${erros['confirmacao'] != null} ? 'is-invalid'"
+                       th:attr="aria-describedby=${erros['confirmacao'] != null} ? 'erroConfirmacao'">
+                <div class="erro-campo" id="erroConfirmacao" th:text="${erros['confirmacao']}"></div>
+            </div>
+
+            <div class="d-flex gap-2 justify-content-end flex-wrap pt-2 borda-topo">
+                <a class="btn btn-secundario" th:href="@{/atendimento}" th:unless="${obrigatoria}">Cancelar</a>
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-check-lg" aria-hidden="true"></i> Salvar senha nova
+                </button>
+            </div>
+        </form>
+    </section>
+</th:block>
+
+<th:block layout:fragment="scripts">
+    <script th:src="@{/js/mostrar-senha.js}"></script>
+    <script>
+        /* Marca as regras da senha conforme a pessoa digita (a conferência de verdade é no servidor). */
+        (function () {
+            var campo = document.getElementById('novaSenha');
+            var lista = document.getElementById('regrasSenha');
+            if (!campo || !lista) return;
+            var regras = {
+                tamanho: function (v) { return v.length >= 8; },
+                letra: function (v) { return /\p{L}/u.test(v); },
+                numero: function (v) { return /\p{Nd}/u.test(v); }
+            };
+            function atualizar() {
+                Object.keys(regras).forEach(function (nome) {
+                    var item = lista.querySelector('[data-regra="' + nome + '"]');
+                    var ok = regras[nome](campo.value);
+                    item.classList.toggle('ok', ok);
+                    item.querySelector('i').className = ok ? 'bi bi-check-circle-fill' : 'bi bi-circle';
+                });
+            }
+            campo.addEventListener('input', atualizar);
+        })();
+    </script>
+</th:block>
+</body>
+</html>

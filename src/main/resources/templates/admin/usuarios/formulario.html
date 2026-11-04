@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="pt-BR"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/interno}">
+<head>
+    <title th:text="${detalhe == null} ? 'Novo usuário' : ${detalhe.nome()}">Usuário</title>
+</head>
+<body>
+<th:block layout:fragment="conteudo" th:with="novo=${detalhe == null}">
+
+    <div class="cabecalho-pagina">
+        <div>
+            <a class="voltar-admin" th:href="@{/admin/usuarios}"><i class="bi bi-arrow-left" aria-hidden="true"></i> Usuários</a>
+            <h1 th:text="${novo} ? 'Novo usuário' : ${detalhe.nome()}">Novo usuário</h1>
+            <p th:if="${novo}">O sistema gera uma senha temporária. A pessoa cria a própria senha no primeiro acesso.</p>
+            <p th:unless="${novo}" class="d-flex flex-wrap gap-2 align-items-center">
+                <span class="badge-pilula com-ponto" th:classappend="${detalhe.ativo()} ? 'sla-ok' : 'sla-sem'"
+                      th:text="${detalhe.ativo()} ? 'Ativo' : 'Inativo'">Ativo</span>
+                <span class="badge-pilula sla-vence" th:if="${detalhe.ativo() and detalhe.trocarSenha()}">Senha temporária</span>
+                <span class="selo selo-publico" th:if="${detalhe.ehVoce()}">Você</span>
+                <span th:text="${detalhe.email()}">rafael@goias.com.br</span>
+            </p>
+        </div>
+    </div>
+
+    <!-- Senha temporária: aparece UMA vez (flash depois de criar ou redefinir) -->
+    <section class="card cartao-senha" th:if="${senhaTemporaria != null}">
+        <div class="card-body d-flex flex-column gap-3">
+            <div class="d-flex gap-3 align-items-start">
+                <span class="icone-cartao" aria-hidden="true"><i class="bi bi-key"></i></span>
+                <div>
+                    <h2 class="card-titulo mb-1">Senha temporária</h2>
+                    <p class="mb-0 text-secondary">Copie agora e passe para a pessoa. <strong>Ela não aparece de novo.</strong>
+                        No primeiro acesso, o sistema pede para criar uma senha própria.</p>
+                </div>
+            </div>
+            <div class="caixa-protocolo caixa-senha">
+                <span class="codigo" id="senhaTemporaria" th:text="${senhaTemporaria}">Ab3#xY7kPq2m</span>
+                <button type="button" class="btn btn-primary" data-copiar="senhaTemporaria" data-nome="Senha"
+                        aria-label="Copiar senha temporária">
+                    <i class="bi bi-copy" aria-hidden="true"></i> <span class="texto">Copiar</span>
+                </button>
+            </div>
+            <span id="avisoCopia" class="small text-secondary" role="status" aria-live="polite"></span>
+        </div>
+    </section>
+
+    <!-- Aviso de chamados que continuam com quem foi desativado -->
+    <div class="alert alert-warning mb-0 d-flex gap-2 align-items-start" role="status" th:if="${chamadosDoDesativado != null}">
+        <i class="bi bi-exclamation-triangle" aria-hidden="true"></i>
+        <span>
+            <strong th:text="${chamadosDoDesativado} + (${chamadosDoDesativado == 1} ? ' chamado em andamento continua' : ' chamados em andamento continuam')">
+                3 chamados em andamento continuam</strong>
+            com esta pessoa. O gestor da área deve transferir para outro atendente.
+            <a th:href="@{${linkFilaDesativado}}" class="fw-semibold">Ver na fila</a>
+        </span>
+    </div>
+    <div class="alert alert-warning mb-0" role="status" th:if="${avisoUsuario != null}">
+        <i class="bi bi-info-circle" aria-hidden="true"></i> <span th:text="${avisoUsuario}">Aviso</span>
+    </div>
+
+    <div class="grade-admin">
+        <!-- Dados -->
+        <section class="card">
+            <form class="card-body d-flex flex-column gap-4" method="post" novalidate
+                  th:action="${novo} ? @{/admin/usuarios/novo} : @{/admin/usuarios/{id}(id=${detalhe.id()})}">
+                <h2 class="card-titulo mb-0">Dados de acesso</h2>
+
+                <div>
+                    <label class="form-label" for="nome">Nome completo</label>
+                    <input class="form-control" id="nome" name="nome" type="text" maxlength="120" required
+                           th:value="${form.nome}" th:classappend="${erros['nome'] != null} ? 'is-invalid'" autocomplete="off">
+                    <div class="erro-campo" th:text="${erros['nome']}"></div>
+                </div>
+
+                <div>
+                    <label class="form-label" for="email">E-mail (usado para entrar)</label>
+                    <input class="form-control" id="email" name="email" type="email" maxlength="150" required
+                           th:value="${form.email}" th:classappend="${erros['email'] != null} ? 'is-invalid'" autocomplete="off">
+                    <div class="erro-campo" th:text="${erros['email']}"></div>
+                </div>
+
+                <fieldset>
+                    <legend class="form-label">Perfil</legend>
+                    <div class="opcoes-perfil">
+                        <th:block th:each="p : ${perfis}">
+                            <input type="radio" class="btn-check" name="perfil" th:id="'perfil-' + ${p.name()}"
+                                   th:value="${p.name()}" th:checked="${form.perfil == p}"
+                                   th:disabled="${!novo and detalhe.ehVoce() and form.perfil != p}">
+                            <label class="opcao-perfil" th:for="'perfil-' + ${p.name()}">
+                                <strong th:text="${p.descricao}">Atendente</strong>
+                                <span th:switch="${p.name()}">
+                                    <th:block th:case="'ATENDENTE'">Atende a fila da área dele.</th:block>
+                                    <th:block th:case="'GESTOR'">Atende, transfere e vê o painel da área.</th:block>
+                                    <th:block th:case="*">Vê todas as áreas e mexe nas configurações.</th:block>
+                                </span>
+                            </label>
+                        </th:block>
+                    </div>
+                    <div class="erro-campo" th:text="${erros['perfil']}"></div>
+                    <p class="form-text mb-0" th:if="${!novo and detalhe.ehVoce()}">Você não pode mudar o seu próprio perfil.</p>
+                </fieldset>
+
+                <div id="campoArea">
+                    <label class="form-label" for="areaId">Área</label>
+                    <select class="form-select" id="areaId" name="areaId"
+                            th:classappend="${erros['areaId'] != null} ? 'is-invalid'">
+                        <option value="">Escolha a área</option>
+                        <option th:each="a : ${areas}" th:value="${a.id()}" th:text="${a.rotulo()}"
+                                th:selected="${form.areaId == a.id()}"
+                                th:disabled="${!a.ativo() and form.areaId != a.id()}">TI</option>
+                    </select>
+                    <div class="erro-campo" th:text="${erros['areaId']}"></div>
+                    <p class="form-text mb-0">Obrigatória para atendente e gestor. Administrador fica sem área (vê todas).</p>
+                </div>
+
+                <!-- Mudança de área de quem tem chamados em andamento: precisa confirmar -->
+                <div class="alert alert-warning mb-0 d-flex flex-column gap-2" role="alert" th:if="${confirmarArea > 0}">
+                    <span><i class="bi bi-exclamation-triangle" aria-hidden="true"></i>
+                        <strong th:text="${detalhe.nome()} + ' tem ' + ${confirmarArea} + (${confirmarArea == 1} ? ' chamado em andamento.' : ' chamados em andamento.')">
+                            Rafael tem 3 chamados em andamento.</strong>
+                        Eles continuam com essa pessoa na área antiga, mas ela deixa de vê-los na fila.
+                        O gestor da área antiga precisa transferi-los.</span>
+                    <a th:href="@{${linkFila}}" class="fw-semibold">Ver esses chamados na fila</a>
+                    <label class="form-check d-flex gap-2 align-items-center mb-0">
+                        <input class="form-check-input mt-0" type="checkbox" name="confirmarMudancaArea" value="true">
+                        <span>Entendi, quero mudar a área mesmo assim.</span>
+                    </label>
+                </div>
+
+                <div class="d-flex gap-2 justify-content-end flex-wrap pt-2 borda-topo">
+                    <a class="btn btn-secundario" th:href="@{/admin/usuarios}">Cancelar</a>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-check-lg" aria-hidden="true"></i>
+                        <span th:text="${novo} ? 'Criar usuário' : 'Salvar alterações'">Salvar</span>
+                    </button>
+                </div>
+            </form>
+        </section>
+
+        <!-- Ações da conta (só ao editar) -->
+        <aside class="d-flex flex-column gap-4" th:unless="${novo}">
+            <section class="card">
+                <div class="card-body d-flex flex-column gap-3">
+                    <h2 class="card-titulo mb-0">Situação</h2>
+                    <dl class="lista-dados">
+                        <div><dt>Chamados em andamento</dt><dd class="tabular" th:text="${detalhe.emAndamento()}">0</dd></div>
+                        <div><dt>Sessões abertas agora</dt><dd class="tabular" th:text="${detalhe.sessoesAbertas()}">0</dd></div>
+                    </dl>
+                    <a th:href="@{${linkFila}}" class="small fw-semibold" th:if="${detalhe.emAndamento() > 0}">
+                        <i class="bi bi-list-ul" aria-hidden="true"></i> Ver chamados desta pessoa na fila</a>
+
+                    <th:block th:if="${detalhe.ativo()}">
+                        <details class="acao-com-texto" th:unless="${detalhe.ehVoce()}">
+                            <summary class="btn btn-secundario w-100 text-danger">
+                                <i class="bi bi-person-x" aria-hidden="true"></i> Desativar usuário
+                            </summary>
+                            <form method="post" th:action="@{/admin/usuarios/{id}/desativar(id=${detalhe.id()})}">
+                                <p class="small mb-0">A pessoa é desconectada na hora e não consegue mais entrar.
+                                    Os chamados dela continuam com ela até alguém transferir.</p>
+                                <button type="submit" class="btn btn-escuro w-100">Confirmar desativação</button>
+                            </form>
+                        </details>
+                        <p class="ajuda-acao" th:if="${detalhe.ehVoce()}">Você não pode desativar a sua própria conta.</p>
+                    </th:block>
+                    <form method="post" th:action="@{/admin/usuarios/{id}/reativar(id=${detalhe.id()})}" th:unless="${detalhe.ativo()}">
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="bi bi-person-check" aria-hidden="true"></i> Reativar usuário
+                        </button>
+                    </form>
+                </div>
+            </section>
+
+            <section class="card" th:unless="${detalhe.ehVoce()}">
+                <div class="card-body d-flex flex-column gap-3">
+                    <h2 class="card-titulo mb-0">Senha</h2>
+                    <p class="small text-secondary mb-0">Esqueceu a senha? Gere uma senha temporária nova.
+                        A atual deixa de funcionar e a pessoa é desconectada.</p>
+                    <details class="acao-com-texto">
+                        <summary class="btn btn-secundario w-100">
+                            <i class="bi bi-arrow-repeat" aria-hidden="true"></i> Redefinir senha
+                        </summary>
+                        <form method="post" th:action="@{/admin/usuarios/{id}/redefinir-senha(id=${detalhe.id()})}">
+                            <p class="small mb-0">Gerar uma senha temporária nova para
+                                <strong th:text="${detalhe.nome()}">Rafael</strong>?</p>
+                            <button type="submit" class="btn btn-escuro w-100">Gerar senha nova</button>
+                        </form>
+                    </details>
+                </div>
+            </section>
+        </aside>
+    </div>
+</th:block>
+
+<th:block layout:fragment="scripts">
+    <script th:src="@{/js/copiar-codigo.js}"></script>
+    <script th:src="@{/js/admin.js}"></script>
+</th:block>
+</body>
+</html>

@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="pt-BR"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/interno}">
+<head>
+    <title th:text="${tela.titulo()}">Painel da TI</title>
+</head>
+<body>
+<!--
+    Painel do gestor (GET /painel) — igual ao artboard "Painel do gestor — TI" da prévia aprovada.
+    Ordem: cabeçalho com filtro · 4 cards · 3 cards do período · gráfico + por categoria ·
+    precisam de atenção + desempenho por atendente.
+-->
+<th:block layout:fragment="conteudo" th:with="pe=${tela.periodo()}">
+
+    <!-- Cabeçalho: título, área (admin), filtro de período e exportar -->
+    <div class="cabecalho-pagina">
+        <div>
+            <h1 th:text="${tela.titulo()}">Painel da TI</h1>
+            <p>Visão geral dos chamados · <span th:text="${pe.descricao()}">últimos 30 dias</span></p>
+        </div>
+        <div class="acoes-painel">
+            <form th:replace="~{painel/fragmentos :: seletorArea(${tela.area()}, '/painel', ${pe.parametros()})}"></form>
+            <div th:replace="~{painel/fragmentos :: filtroPeriodo(${tela.opcoesPeriodo()}, ${pe}, '/painel', ${tela.ocultosPeriodo()})}"></div>
+            <a class="btn btn-outline-primary botao-exportar" th:href="@{${tela.urlExportar()}}"
+               title="Baixar planilha (CSV) com os chamados abertos no período">
+                <i class="bi bi-download" aria-hidden="true"></i> Exportar
+            </a>
+        </div>
+    </div>
+
+    <div class="alert alert-warning mb-0" role="alert" th:if="${pe.erro() != null}">
+        <i class="bi bi-exclamation-circle" aria-hidden="true"></i>
+        <span th:text="${pe.erro()} + ' Mostrando os últimos 30 dias.'">Período inválido.</span>
+    </div>
+
+    <!-- Cards: situação atual + resolvidos no período -->
+    <div class="grade-resumo">
+        <div class="card-resumo">
+            <div class="topo"><span class="rotulo">Abertos</span><span class="ponto ponto-aberto" aria-hidden="true"></span></div>
+            <span class="valor" th:text="${tela.abertos()}">18</span>
+            <span class="nota" th:text="${tela.notaAbertos()}">5 novos hoje</span>
+        </div>
+        <div class="card-resumo">
+            <div class="topo"><span class="rotulo">Em atendimento</span><span class="ponto" aria-hidden="true"></span></div>
+            <span class="valor" th:text="${tela.emAtendimento()}">7</span>
+            <span class="nota" th:text="${tela.notaEmAtendimento()}">4 atendentes ativos</span>
+        </div>
+        <div class="card-resumo">
+            <div class="topo"><span class="rotulo">Resolvidos</span><span class="ponto ponto-resolvido" aria-hidden="true"></span></div>
+            <span class="valor" th:text="${tela.resolvidos()}">158</span>
+            <span class="nota">No período selecionado</span>
+        </div>
+        <div class="card-resumo">
+            <div class="topo"><span class="rotulo">Atrasados</span><span class="ponto ponto-atrasado" aria-hidden="true"></span></div>
+            <span class="valor" th:classappend="${tela.atrasados() > 0} ? 'perigo'" th:text="${tela.atrasados()}">3</span>
+            <span class="nota">Fora do prazo de SLA</span>
+        </div>
+    </div>
+
+    <!-- Tempos médios e SLA do período -->
+    <div class="grade-resumo larga">
+        <div class="card-resumo destaque">
+            <span class="rotulo">Tempo médio de 1ª resposta</span>
+            <span class="valor medio" th:text="${tela.tempoPrimeiraResposta()}">1h 12min</span>
+            <span class="nota" th:text="${tela.notaPrimeiraResposta()}">Meta da prioridade média: 4h</span>
+        </div>
+        <div class="card-resumo">
+            <span class="rotulo">Tempo médio de resolução</span>
+            <span class="valor medio" th:text="${tela.tempoResolucao()}">9h 40min</span>
+            <span class="nota">Em horas úteis</span>
+        </div>
+        <div class="card-resumo" th:with="pct=${tela.sla().percentual()}">
+            <div class="topo alinhado-base">
+                <span class="rotulo">Dentro do prazo (SLA)</span>
+                <span class="valor medio verde" th:text="${pct != null} ? ${pct} + '%' : '—'">94%</span>
+            </div>
+            <div class="barra larga" role="progressbar" aria-label="Chamados resolvidos dentro do prazo"
+                 th:attr="aria-valuenow=${pct ?: 0}" aria-valuemin="0" aria-valuemax="100">
+                <span th:style="'width:' + ${pct ?: 0} + '%'"></span>
+            </div>
+            <span class="nota" th:text="${tela.sla().texto()}">148 de 158 chamados resolvidos no prazo</span>
+        </div>
+    </div>
+
+    <!-- Gráfico + por categoria -->
+    <div class="linha-painel">
+        <section class="card bloco-grafico" aria-labelledby="tituloGrafico">
+            <div class="card-body d-flex flex-column gap-3">
+                <div class="d-flex justify-content-between align-items-center gap-3 flex-wrap">
+                    <div class="d-flex flex-column gap-1">
+                        <h2 class="card-titulo" id="tituloGrafico">Abertos x resolvidos</h2>
+                        <span class="text-secondary small" th:text="${tela.grafico().descricao()}">Por dia · últimos 30 dias</span>
+                    </div>
+                    <div class="legenda" aria-hidden="true">
+                        <span><i class="cor-abertos"></i>Abertos</span>
+                        <span><i class="cor-resolvidos"></i>Resolvidos</span>
+                    </div>
+                </div>
+                <div class="area-grafico">
+                    <canvas id="graficoPainel" role="img"
+                            th:attr="aria-label='Gráfico de chamados abertos e resolvidos, ' + ${#strings.toLowerCase(tela.grafico().descricao())} + ': '
+                                     + ${tela.grafico().totalAbertos()} + ' abertos e ' + ${tela.grafico().totalResolvidos()} + ' resolvidos'">
+                        <span th:text="${tela.grafico().totalAbertos()} + ' abertos e ' + ${tela.grafico().totalResolvidos()} + ' resolvidos no período.'">
+                            Gráfico de chamados abertos e resolvidos.</span>
+                    </canvas>
+                </div>
+                <script type="application/json" id="dadosGrafico" th:utext="${tela.graficoJson()}">{}</script>
+            </div>
+        </section>
+
+        <section class="card bloco-lateral" aria-labelledby="tituloCategorias">
+            <div class="card-body d-flex flex-column gap-3">
+                <h2 class="card-titulo" id="tituloCategorias">Por categoria</h2>
+                <p class="text-secondary small m-0" th:if="${#lists.isEmpty(tela.categorias())}">
+                    Nenhum chamado aberto no período.</p>
+                <ul class="lista-barras">
+                    <li th:each="c : ${tela.categorias()}" th:classappend="${c.agrupado()} ? 'agrupado'">
+                        <div class="linha-texto">
+                            <span class="nome" th:text="${c.nome()}">Computador / notebook</span>
+                            <strong class="tabular" th:text="${c.quantidade()}">38</strong>
+                        </div>
+                        <div class="barra" aria-hidden="true"><span th:style="'width:' + ${c.pct()} + '%'"></span></div>
+                    </li>
+                </ul>
+            </div>
+        </section>
+    </div>
+
+    <!-- Precisam de atenção + desempenho por atendente -->
+    <div class="linha-painel">
+        <section class="card bloco-atencao" aria-labelledby="tituloAtencao">
+            <div class="card-body d-flex flex-column gap-3">
+                <div class="d-flex justify-content-between align-items-center gap-3">
+                    <h2 class="card-titulo" id="tituloAtencao">Precisam de atenção</h2>
+                    <a th:href="@{/atendimento(filtro='andamento', area=${tela.area().podeEscolher()} ? ${tela.area().id()} : null)}"
+                       class="small fw-semibold">Ver fila completa</a>
+                </div>
+
+                <div class="vazio" th:if="${#lists.isEmpty(tela.precisamDeAtencao())}">
+                    <span class="icone" aria-hidden="true"><i class="bi bi-check2-circle"></i></span>
+                    <strong>Nenhum chamado pendente na área.</strong>
+                </div>
+
+                <!-- Computador: tabela -->
+                <div class="tabela-fila tabela-atencao" th:unless="${#lists.isEmpty(tela.precisamDeAtencao())}">
+                    <table class="table tabela-limpa">
+                        <thead>
+                        <tr>
+                            <th scope="col">Código</th>
+                            <th scope="col">Chamado</th>
+                            <th scope="col">Atendente</th>
+                            <th scope="col">Status</th>
+                            <th scope="col">Prazo</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr th:each="l : ${tela.precisamDeAtencao()}" class="linha-clicavel">
+                            <td class="protocolo">
+                                <a th:href="@{/atendimento/{id}(id=${l.id()})}" th:text="${l.protocolo()}">TI-2026-7K3F</a>
+                            </td>
+                            <td class="col-titulo">
+                                <a class="titulo link-chamado" th:href="@{/atendimento/{id}(id=${l.id()})}"
+                                   th:text="${l.titulo()}">Impressora do financeiro não imprime</a>
+                                <div class="subtitulo" th:text="${l.solicitanteNome() + ' · ' + l.setorNome()}">Ana Souza · Financeiro</div>
+                            </td>
+                            <td th:text="${l.atendentePrimeiroNome() ?: '—'}">Carlos</td>
+                            <td><span class="badge-pilula" th:classappend="${l.classeStatus()}"
+                                      th:text="${l.status().descricao}">Em atendimento</span></td>
+                            <td><span class="badge-pilula com-ponto" th:classappend="${l.badgeSla().classe()}"
+                                      th:title="${l.badgeSla().dica()}" th:text="${l.badgeSla().texto()}">Atrasado 2h</span></td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Celular: cards -->
+                <ul class="cards-fila" th:unless="${#lists.isEmpty(tela.precisamDeAtencao())}">
+                    <li th:each="l : ${tela.precisamDeAtencao()}">
+                        <a th:href="@{/atendimento/{id}(id=${l.id()})}" class="card-chamado">
+                            <span class="linha-topo">
+                                <span class="protocolo" th:text="${l.protocolo()}">TI-2026-7K3F</span>
+                                <span class="badge-pilula com-ponto" th:classappend="${l.badgeSla().classe()}"
+                                      th:text="${l.badgeSla().texto()}">Atrasado 2h</span>
+                            </span>
+                            <span class="titulo" th:text="${l.titulo()}">Impressora do financeiro não imprime</span>
+                            <span class="subtitulo" th:text="${l.solicitanteNome() + ' · ' + l.setorNome()}">Ana Souza · Financeiro</span>
+                            <span class="linha-badges">
+                                <span class="badge-pilula" th:classappend="${l.classeStatus()}"
+                                      th:text="${l.status().descricao}">Em atendimento</span>
+                            </span>
+                            <span class="rodape-card">
+                                <span><i class="bi bi-person" aria-hidden="true"></i>
+                                    <span th:text="${l.atendentePrimeiroNome() ?: 'Sem atendente'}">Carlos</span></span>
+                            </span>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </section>
+
+        <section class="card bloco-lateral" aria-labelledby="tituloAtendentes">
+            <div class="card-body d-flex flex-column gap-3">
+                <h2 class="card-titulo" id="tituloAtendentes">Desempenho por atendente</h2>
+                <p class="text-secondary small m-0" th:if="${#lists.isEmpty(tela.atendentes())}">
+                    Nenhum atendente cadastrado na área.</p>
+                <ul class="lista-atendentes">
+                    <li th:each="a : ${tela.atendentes()}">
+                        <span class="avatar" th:text="${a.iniciais()}" aria-hidden="true">CA</span>
+                        <div class="dados">
+                            <div class="linha-texto">
+                                <span class="nome" th:text="${a.nome()}">Carlos Andrade</span>
+                                <span class="qtd"><strong class="tabular" th:text="${a.resolvidos()}">48</strong>
+                                    <span th:text="${a.resolvidos() == 1} ? 'resolvido' : 'resolvidos'">resolvidos</span></span>
+                            </div>
+                            <div class="barra fina" aria-hidden="true"><span th:style="'width:' + ${a.pct()} + '%'"></span></div>
+                            <span class="tempo" th:text="'Tempo médio: ' + ${a.tempoMedio()}">Tempo médio: 7h 50min</span>
+                        </div>
+                    </li>
+                </ul>
+            </div>
+        </section>
+    </div>
+</th:block>
+
+<th:block layout:fragment="scripts">
+    <script th:src="@{/vendor/chartjs/chart.umd.min.js}"></script>
+    <script th:src="@{/js/painel.js}"></script>
+</th:block>
+</body>
+</html>

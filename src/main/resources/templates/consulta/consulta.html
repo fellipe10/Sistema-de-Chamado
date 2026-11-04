@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="pt-BR"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/publico}">
+<head>
+    <title>Consultar chamado</title>
+</head>
+<body>
+
+<div layout:fragment="destaque">
+    <h1>Acompanhe seu chamado.</h1>
+    <p>Digite o código que você recebeu ao abrir o chamado para ver como está o atendimento.</p>
+</div>
+
+<th:block layout:fragment="conteudo">
+    <div class="corpo">
+        <div class="cabecalho">
+            <h2>Consultar chamado</h2>
+            <p>O código fica assim: TI-2026-7K3F. Pode digitar com ou sem hífen.</p>
+        </div>
+
+        <form class="busca-codigo" method="get" th:action="@{/consultar}" role="search">
+            <div class="campo">
+                <label class="visually-hidden" for="codigo">Código do chamado</label>
+                <input class="form-control" id="codigo" name="codigo" type="text" th:value="${codigo}"
+                       placeholder="Ex.: TI-2026-7K3F" maxlength="40" autocomplete="off"
+                       autocapitalize="characters" spellcheck="false" required
+                       th:classappend="${erro != null} ? 'is-invalid'"
+                       th:attr="aria-describedby=${erro != null} ? 'erroConsulta'">
+            </div>
+            <button type="submit" class="btn btn-primary">
+                <i class="bi bi-search" aria-hidden="true"></i> Consultar
+            </button>
+        </form>
+
+        <div class="alert alert-warning mb-0" role="alert" id="erroConsulta" th:if="${erro}">
+            <i class="bi bi-exclamation-circle" aria-hidden="true"></i>
+            <span th:text="${erro}">Não encontramos um chamado com esse código. Confira e tente de novo.</span>
+        </div>
+    </div>
+
+    <section class="resultado-consulta" th:if="${resultado}" th:object="${resultado}"
+             aria-labelledby="codigoResultado">
+        <div class="topo-resultado">
+            <div>
+                <span class="rotulo-codigo">Chamado</span>
+                <span class="codigo" id="codigoResultado" th:text="*{protocolo}">TI-2026-7K3F</span>
+            </div>
+            <span class="badge-pilula com-ponto"
+                  th:classappend="'status-' + ${#strings.toLowerCase(resultado.status.name())}"
+                  th:text="*{status.descricao}">Aberto</span>
+        </div>
+
+        <h3 class="titulo-chamado" th:text="*{titulo}">Impressora do financeiro não imprime</h3>
+
+        <!-- Motivo do "Aguardando" (Etapa 4) -->
+        <div class="aviso-aguardando" th:if="*{aguardandoTexto != null}"
+             th:classappend="*{aguardandoSolicitante} ? 'retorno'" role="status">
+            <i class="bi" th:classappend="*{aguardandoSolicitante} ? 'bi-chat-dots' : 'bi-box-seam'" aria-hidden="true"></i>
+            <span>
+                <strong th:text="*{aguardandoTexto}">Aguardando seu retorno</strong>
+                <span th:if="*{aguardandoSolicitante}">A equipe precisa de uma informação sua. Veja a última mensagem no andamento abaixo e responda pelo ramal ou e-mail da área.</span>
+                <span th:unless="*{aguardandoSolicitante}">A equipe está aguardando uma peça, um fornecedor ou outra empresa para continuar.</span>
+            </span>
+        </div>
+
+        <dl class="dados-chamado">
+            <div><dt>Área</dt><dd th:text="*{area}">TI</dd></div>
+            <div><dt>Categoria</dt><dd th:text="*{categoria}">Impressora e scanner</dd></div>
+            <div><dt>Local</dt><dd th:text="*{local}">Sede administrativa</dd></div>
+            <div><dt>Aberto em</dt>
+                <dd class="tabular" th:text="${#temporals.format(resultado.dataAbertura, 'dd/MM/yyyy ''às'' HH:mm')}">03/11/2026 às 09:12</dd></div>
+            <div th:if="*{atendentePrimeiroNome != null}"><dt>Atendente</dt><dd th:text="*{atendentePrimeiroNome}">João</dd></div>
+        </dl>
+
+        <div>
+            <h3 class="linha-tempo-titulo">Andamento</h3>
+            <ol class="linha-tempo" th:if="${not #lists.isEmpty(resultado.linhaTempo)}">
+                <li th:each="item : *{linhaTempo}">
+                    <span class="marcador" th:classappend="${item.resposta} ? 'resposta'" aria-hidden="true"></span>
+                    <time class="quando" th:attr="datetime=${item.data}"
+                          th:text="${#temporals.format(item.data, 'dd/MM/yyyy ''às'' HH:mm')}">03/11/2026 às 09:12</time>
+                    <span class="o-que" th:text="${item.titulo}">Chamado aberto</span>
+                    <p class="texto" th:if="${item.texto != null}" th:text="${item.texto}">Texto</p>
+                </li>
+            </ol>
+            <p class="text-secondary m-0" th:if="${#lists.isEmpty(resultado.linhaTempo)}">Ainda sem movimentação.</p>
+        </div>
+    </section>
+</th:block>
+</body>
+</html>

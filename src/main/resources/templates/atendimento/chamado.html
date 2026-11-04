@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="pt-BR"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/interno}">
+<head>
+    <title th:text="${c.protocolo}">TI-2026-7K3F</title>
+</head>
+<body>
+<!--
+    Tela do chamado (equipe).
+    No computador: coluna principal (descrição, mensagem, histórico) + coluna lateral (ações, dados).
+    No celular: um card embaixo do outro, com as ações logo depois do cabeçalho.
+-->
+<th:block layout:fragment="conteudo" th:with="p=${tela.permissoes()}">
+
+    <!-- Cabeçalho -->
+    <section class="card cabecalho-chamado">
+        <div class="card-body d-flex flex-column gap-3">
+            <a th:href="@{/atendimento}" class="voltar small fw-semibold">
+                <i class="bi bi-arrow-left" aria-hidden="true"></i> Fila de chamados
+            </a>
+            <div class="d-flex flex-column gap-1">
+                <span class="codigo-chamado" th:text="${c.protocolo}">TI-2026-7K3F</span>
+                <h1 th:text="${c.titulo}">Impressora do financeiro não imprime</h1>
+            </div>
+            <div class="d-flex gap-2 flex-wrap">
+                <span class="badge-pilula com-ponto" th:classappend="${tela.classeStatus()}"
+                      th:text="${c.status.descricao}">Em atendimento</span>
+                <span class="badge-pilula" th:classappend="${tela.classePrioridade()}"
+                      th:text="'Prioridade ' + ${#strings.toLowerCase(c.prioridade.descricao)}">Prioridade alta</span>
+                <span class="badge-pilula com-ponto" th:classappend="${tela.badgeSla().classe()}"
+                      th:title="${tela.badgeSla().dica()}" th:text="${tela.badgeSla().texto()}">No prazo</span>
+            </div>
+        </div>
+    </section>
+
+    <div class="grade-chamado">
+        <!-- ===================== Coluna principal ===================== -->
+        <div class="coluna-principal">
+
+            <!-- Descrição e anexos -->
+            <section class="card ordem-descricao">
+                <div class="card-body d-flex flex-column gap-3">
+                    <h2 class="card-titulo">Descrição</h2>
+                    <p class="texto-descricao" th:text="${c.descricao}">Descrição do problema.</p>
+                    <div th:if="${not #lists.isEmpty(tela.anexos())}" class="d-flex flex-column gap-2">
+                        <h3 class="subtitulo-card">Anexos</h3>
+                        <ul class="lista-anexos">
+                            <li th:each="a : ${tela.anexos()}">
+                                <i class="bi" th:classappend="${a.icone()}" aria-hidden="true"></i>
+                                <span class="nome" th:text="${a.nome()}" th:title="${a.nome()}">foto.png</span>
+                                <span class="tamanho" th:text="${a.tamanho()}">120 KB</span>
+                                <a class="btn btn-sm btn-secundario"
+                                   th:href="@{/atendimento/{id}/anexos/{anexo}(id=${c.id},anexo=${a.id()})}"
+                                   th:attr="aria-label='Baixar ' + ${a.nome()}">
+                                    <i class="bi bi-download" aria-hidden="true"></i> Baixar
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Caixa de mensagem: responder ao solicitante / comentário interno -->
+            <section class="card ordem-mensagem" th:if="${tela.podeResponder() or p.podeComentar()}"
+                     th:with="abrirComentario=${!tela.podeResponder() or rascunhoOrigem == 'COMENTARIO'}">
+                <div class="card-body d-flex flex-column gap-3">
+                    <h2 class="card-titulo">Mensagem</h2>
+                    <ul class="nav abas-mensagem" role="tablist">
+                        <li class="nav-item" role="presentation" th:if="${tela.podeResponder()}">
+                            <button class="nav-link" th:classappend="${!abrirComentario} ? 'active'" type="button"
+                                    data-bs-toggle="tab" data-bs-target="#painelResposta" role="tab"
+                                    aria-controls="painelResposta" th:attr="aria-selected=${!abrirComentario}">
+                                <i class="bi bi-reply" aria-hidden="true"></i> Responder ao solicitante
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation" th:if="${p.podeComentar()}">
+                            <button class="nav-link" th:classappend="${abrirComentario} ? 'active'" type="button"
+                                    data-bs-toggle="tab" data-bs-target="#painelComentario" role="tab"
+                                    aria-controls="painelComentario" th:attr="aria-selected=${abrirComentario}">
+                                <i class="bi bi-lock" aria-hidden="true"></i> Comentário interno
+                            </button>
+                        </li>
+                    </ul>
+                    <div class="tab-content">
+                        <div class="tab-pane fade" id="painelResposta" role="tabpanel" th:if="${tela.podeResponder()}"
+                             th:classappend="${!abrirComentario} ? 'show active'">
+                            <form th:action="@{/atendimento/{id}/interacao(id=${c.id})}" method="post" class="d-flex flex-column gap-3">
+                                <input type="hidden" name="tipo" value="RESPOSTA_SOLICITANTE">
+                                <div class="aviso-visibilidade publico">
+                                    <i class="bi bi-eye" aria-hidden="true"></i>
+                                    <span><strong>O solicitante vai ver esta mensagem</strong> na consulta pública pelo código do chamado.</span>
+                                </div>
+                                <label class="visually-hidden" for="textoResposta">Mensagem para o solicitante</label>
+                                <textarea class="form-control" id="textoResposta" name="mensagem" rows="4" required
+                                          th:attr="maxlength=${tamanhoMaximoTexto}"
+                                          placeholder="Escreva a mensagem para o solicitante..."
+                                          th:text="${rascunhoOrigem == 'RESPOSTA_SOLICITANTE'} ? ${rascunho} : ''"></textarea>
+                                <div class="d-flex justify-content-end">
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="bi bi-send" aria-hidden="true"></i> Enviar resposta
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                        <div class="tab-pane fade" id="painelComentario" role="tabpanel" th:if="${p.podeComentar()}"
+                             th:classappend="${abrirComentario} ? 'show active'">
+                            <form th:action="@{/atendimento/{id}/interacao(id=${c.id})}" method="post" class="d-flex flex-column gap-3">
+                                <input type="hidden" name="tipo" value="COMENTARIO">
+                                <div class="aviso-visibilidade interno">
+                                    <i class="bi bi-lock" aria-hidden="true"></i>
+                                    <span><strong>Só a equipe vê.</strong> Não aparece na consulta pública.</span>
+                                </div>
+                                <label class="visually-hidden" for="textoComentario">Comentário interno</label>
+                                <textarea class="form-control" id="textoComentario" name="mensagem" rows="4" required
+                                          th:attr="maxlength=${tamanhoMaximoTexto}"
+                                          placeholder="Anotação para a equipe..."
+                                          th:text="${rascunhoOrigem == 'COMENTARIO'} ? ${rascunho} : ''"></textarea>
+                                <div class="d-flex justify-content-end">
+                                    <button type="submit" class="btn btn-escuro">
+                                        <i class="bi bi-chat-left-text" aria-hidden="true"></i> Salvar comentário
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Histórico completo -->
+            <section class="card ordem-historico">
+                <div class="card-body d-flex flex-column gap-3">
+                    <h2 class="card-titulo">Histórico</h2>
+                    <ol class="linha-tempo historico-equipe">
+                        <li th:each="h : ${tela.historico()}" th:classappend="${h.classe()}">
+                            <span class="marcador" aria-hidden="true"><i class="bi" th:classappend="${h.icone()}"></i></span>
+                            <div class="cabeca">
+                                <span class="o-que" th:text="${h.titulo()}">Comentário interno</span>
+                                <span class="selo selo-interno" th:if="${h.interno()}">
+                                    <i class="bi bi-lock-fill" aria-hidden="true"></i> Interno</span>
+                                <span class="selo selo-publico" th:if="${h.tipo().name() == 'RESPOSTA_SOLICITANTE'}">
+                                    <i class="bi bi-eye" aria-hidden="true"></i> Visível ao solicitante</span>
+                            </div>
+                            <span class="quando">
+                                <time th:attr="datetime=${h.data()}"
+                                      th:text="${#temporals.format(h.data(), 'dd/MM/yyyy ''às'' HH:mm')}">03/11/2026 às 09:12</time>
+                                <th:block th:if="${h.autor() != null}"> · <span th:text="${h.autor()}">Carla Mendes</span></th:block>
+                            </span>
+                            <p class="texto" th:if="${h.texto() != null}" th:text="${h.texto()}">Texto</p>
+                        </li>
+                    </ol>
+                </div>
+            </section>
+        </div>
+
+        <!-- ===================== Coluna lateral ===================== -->
+        <div class="coluna-lateral">
+
+            <!-- Ações: responsável e status -->
+            <section class="card ordem-acoes">
+                <div class="card-body d-flex flex-column gap-3">
+                    <h2 class="card-titulo">Atendimento</h2>
+
+                    <div class="responsavel">
+                        <span class="avatar" th:if="${c.atendente != null}"
+                              th:text="${#strings.toUpperCase(#strings.substring(c.atendente.nome, 0, 1))}">R</span>
+                        <span class="avatar vazio" th:if="${c.atendente == null}" aria-hidden="true"><i class="bi bi-person"></i></span>
+                        <span class="d-flex flex-column">
+                            <span class="rotulo">Responsável</span>
+                            <strong th:text="${c.atendente != null} ? ${c.atendente.nome} : 'Ninguém assumiu ainda'">Rafael Nunes</strong>
+                        </span>
+                    </div>
+
+                    <!-- Aguardando: motivo e situação do prazo (Etapa 4) -->
+                    <div class="motivo-aguardando" th:if="${c.aguardandoMotivo != null}"
+                         th:classappend="${c.pausado} ? 'pausado'">
+                        <i class="bi" th:classappend="${c.pausado} ? 'bi-pause-circle' : 'bi-hourglass-split'"
+                           aria-hidden="true"></i>
+                        <span class="d-flex flex-column">
+                            <strong th:text="${c.aguardandoMotivo.descricao}">Aguardando o solicitante</strong>
+                            <span th:if="${c.pausado}"
+                                  th:text="'Prazo pausado desde ' + ${#temporals.format(c.pausaInicio, 'dd/MM ''às'' HH:mm')} + '. Ao retomar, o prazo é estendido pelo tempo útil parado.'">Prazo pausado desde 03/11 às 14:00.</span>
+                            <span th:unless="${c.pausado}">O prazo continua correndo.</span>
+                        </span>
+                    </div>
+
+                    <form th:if="${p.podeAssumir() and !tela.fechado()}"
+                          th:action="@{/atendimento/{id}/assumir(id=${c.id})}" method="post">
+                        <input type="hidden" name="versao" th:value="${c.versao}">
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="bi bi-hand-index-thumb" aria-hidden="true"></i> Assumir chamado
+                        </button>
+                    </form>
+
+                    <!-- Mudança de status -->
+                    <div class="d-flex flex-column gap-2" th:if="${not #lists.isEmpty(tela.opcoesStatus())}">
+                        <th:block th:each="o : ${tela.opcoesStatus()}">
+                            <form th:unless="${o.exigeMensagem() or o.exigeMotivo()}"
+                                  th:action="@{/atendimento/{id}/status(id=${c.id})}" method="post">
+                                <input type="hidden" name="versao" th:value="${c.versao}">
+                                <input type="hidden" name="status" th:value="${o.status().name()}">
+                                <button type="submit" class="btn w-100" th:classappend="${o.classeBotao()}">
+                                    <i class="bi" th:classappend="${o.icone()}" aria-hidden="true"></i>
+                                    <span th:text="${o.rotulo()}">Marcar como aguardando</span>
+                                </button>
+                                <p class="ajuda-acao" th:if="${o.ajuda() != null}" th:text="${o.ajuda()}">Ajuda</p>
+                            </form>
+                            <!-- Aguardando: escolher o motivo (só "aguardando o solicitante" pausa o prazo) -->
+                            <details th:if="${o.exigeMotivo()}" class="acao-com-texto">
+                                <summary class="btn w-100" th:classappend="${o.classeBotao()}">
+                                    <i class="bi" th:classappend="${o.icone()}" aria-hidden="true"></i>
+                                    <span th:text="${o.rotulo()}">Marcar como aguardando</span>
+                                </summary>
+                                <form th:action="@{/atendimento/{id}/status(id=${c.id})}" method="post"
+                                      class="d-flex flex-column gap-2">
+                                    <input type="hidden" name="versao" th:value="${c.versao}">
+                                    <input type="hidden" name="status" th:value="${o.status().name()}">
+                                    <fieldset class="d-flex flex-column gap-2">
+                                        <legend class="form-label mb-1" th:text="${o.rotuloMensagem()}">Aguardando o quê?</legend>
+                                        <label class="opcao-motivo" th:each="m, it : ${tela.motivosAguardando()}">
+                                            <input class="form-check-input" type="radio" name="motivo" required
+                                                   th:value="${m.name()}" th:id="'motivo' + ${m.name()}">
+                                            <span class="d-flex flex-column">
+                                                <strong th:text="${m.descricao}">Aguardando o solicitante</strong>
+                                                <span th:text="${m.ajuda}">O prazo fica pausado.</span>
+                                            </span>
+                                        </label>
+                                    </fieldset>
+                                    <button type="submit" class="btn btn-sm" th:classappend="${o.classeBotao()}">
+                                        Confirmar
+                                    </button>
+                                </form>
+                            </details>
+                            <details th:if="${o.exigeMensagem()}" class="acao-com-texto"
+                                     th:attr="open=${rascunhoOrigem == 'status-' + o.status().name()} ? 'open'">
+                                <summary class="btn w-100" th:classappend="${o.classeBotao()}">
+                                    <i class="bi" th:classappend="${o.icone()}" aria-hidden="true"></i>
+                                    <span th:text="${o.rotulo()}">Resolver chamado</span>
+                                </summary>
+                                <form th:action="@{/atendimento/{id}/status(id=${c.id})}" method="post"
+                                      class="d-flex flex-column gap-2">
+                                    <input type="hidden" name="versao" th:value="${c.versao}">
+                                    <input type="hidden" name="status" th:value="${o.status().name()}">
+                                    <label class="form-label mb-0" th:for="'msg' + ${o.status().name()}"
+                                           th:text="${o.rotuloMensagem()}">Mensagem de solução</label>
+                                    <textarea class="form-control" th:id="'msg' + ${o.status().name()}" name="mensagem"
+                                              rows="3" required th:attr="maxlength=${tamanhoMaximoTexto}"
+                                              th:text="${rascunhoOrigem == 'status-' + o.status().name()} ? ${rascunho} : ''"></textarea>
+                                    <p class="ajuda-acao" th:text="${o.ajuda()}">Ajuda</p>
+                                    <button type="submit" class="btn btn-sm" th:classappend="${o.classeBotao()}">
+                                        Confirmar
+                                    </button>
+                                </form>
+                            </details>
+                        </th:block>
+                    </div>
+
+                    <p class="aviso-fechado" th:if="${tela.fechado()}">
+                        <i class="bi bi-lock-fill" aria-hidden="true"></i>
+                        Chamado fechado. Não aceita mais mudanças.
+                    </p>
+
+                    <form th:if="${p.podeDevolver() and c.status.name() != 'RESOLVIDO' and !tela.fechado()}"
+                          th:action="@{/atendimento/{id}/devolver(id=${c.id})}" method="post">
+                        <input type="hidden" name="versao" th:value="${c.versao}">
+                        <button type="submit" class="btn btn-secundario w-100">
+                            <i class="bi bi-box-arrow-left" aria-hidden="true"></i> Devolver para a fila
+                        </button>
+                    </form>
+
+                    <!-- Transferir (gestor da área ou admin) -->
+                    <form th:if="${not #lists.isEmpty(tela.paraTransferir())}"
+                          th:action="@{/atendimento/{id}/transferir(id=${c.id})}" method="post"
+                          class="d-flex flex-column gap-2 borda-topo pt-3">
+                        <input type="hidden" name="versao" th:value="${c.versao}">
+                        <label class="form-label mb-0" for="transferirPara"
+                               th:text="${c.atendente == null} ? 'Atribuir a' : 'Transferir para'">Transferir para</label>
+                        <div class="d-flex gap-2">
+                            <select class="form-select" id="transferirPara" name="usuarioId" required>
+                                <option value="">Escolha...</option>
+                                <option th:each="u : ${tela.paraTransferir()}" th:value="${u.id()}"
+                                        th:text="${u.nome() + ' (' + u.perfil() + ')'}">José Ribeiro (Atendente)</option>
+                            </select>
+                            <button type="submit" class="btn btn-outline-primary">
+                                <span th:text="${c.atendente == null} ? 'Atribuir' : 'Transferir'">Transferir</span>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </section>
+
+            <!-- Solicitante -->
+            <section class="card ordem-solicitante">
+                <div class="card-body d-flex flex-column gap-3">
+                    <h2 class="card-titulo">Solicitante</h2>
+                    <dl class="lista-dados">
+                        <div><dt>Nome</dt><dd th:text="${c.solicitanteNome}">Ana Souza</dd></div>
+                        <div><dt>Setor</dt><dd th:text="${c.setor.nome}">Financeiro</dd></div>
+                        <div th:if="${c.solicitanteMatricula != null}"><dt>Matrícula</dt>
+                            <dd th:text="${c.solicitanteMatricula}">1234</dd></div>
+                        <div th:if="${c.solicitanteEmail != null}"><dt>E-mail</dt>
+                            <dd><a th:href="'mailto:' + ${c.solicitanteEmail} + '?subject=' + ${#uris.escapeQueryParam('Chamado ' + c.protocolo + ' - ' + c.titulo)}"
+                                   th:text="${c.solicitanteEmail}">ana@goiasec.com.br</a></dd></div>
+                        <div th:if="${c.solicitanteTelefone != null}"><dt>Telefone</dt>
+                            <dd th:text="${c.solicitanteTelefone}">ramal 214</dd></div>
+                    </dl>
+                </div>
+            </section>
+
+            <!-- Detalhes -->
+            <section class="card ordem-detalhes">
+                <div class="card-body d-flex flex-column gap-3">
+                    <h2 class="card-titulo">Detalhes</h2>
+                    <dl class="lista-dados">
+                        <div><dt>Área</dt><dd th:text="${c.area.nome}">TI</dd></div>
+                        <div><dt>Categoria</dt><dd th:text="${c.categoria.nome}">Impressora e scanner</dd></div>
+                        <div><dt>Local</dt><dd th:text="${c.local.nome}">Sede administrativa</dd></div>
+                        <div><dt>Urgência informada</dt><dd th:text="${c.urgencia.descricao}">Alta</dd></div>
+                        <div><dt>Prioridade</dt>
+                            <dd><span class="badge-pilula" th:classappend="${tela.classePrioridade()}"
+                                      th:text="${c.prioridade.descricao}">Alta</span></dd></div>
+                    </dl>
+                    <form th:if="${tela.podeMudarPrioridade()}" th:action="@{/atendimento/{id}/prioridade(id=${c.id})}"
+                          method="post" class="d-flex flex-column gap-2 borda-topo pt-3">
+                        <input type="hidden" name="versao" th:value="${c.versao}">
+                        <label class="form-label mb-0" for="novaPrioridade">Mudar prioridade</label>
+                        <div class="d-flex gap-2">
+                            <select class="form-select" id="novaPrioridade" name="prioridade">
+                                <option th:each="pr : ${tela.prioridades()}" th:value="${pr.name()}"
+                                        th:text="${pr.descricao}" th:selected="${pr == c.prioridade}">Alta</option>
+                            </select>
+                            <button type="submit" class="btn btn-outline-primary">Alterar</button>
+                        </div>
+                        <p class="ajuda-acao">Os prazos são recalculados a partir da abertura, em horário de expediente.</p>
+                    </form>
+                </div>
+            </section>
+
+            <!-- Datas e prazos -->
+            <section class="card ordem-datas">
+                <div class="card-body d-flex flex-column gap-3">
+                    <h2 class="card-titulo">Datas e prazos</h2>
+                    <dl class="lista-dados datas">
+                        <div><dt>Aberto em</dt>
+                            <dd th:text="${#temporals.format(c.dataAbertura, 'dd/MM/yyyy HH:mm')}">03/11/2026 09:12</dd></div>
+                        <div><dt>Prazo da 1ª resposta</dt>
+                            <dd th:text="${c.prazoPrimeiraResposta != null} ? ${#temporals.format(c.prazoPrimeiraResposta, 'dd/MM/yyyy HH:mm')} : 'Sem prazo'">03/11/2026 11:12</dd></div>
+                        <div><dt>1ª resposta</dt>
+                            <dd>
+                                <span th:text="${c.dataPrimeiraResposta != null} ? ${#temporals.format(c.dataPrimeiraResposta, 'dd/MM/yyyy HH:mm')} : 'Ainda não'">03/11/2026 09:30</span>
+                                <span class="marca-prazo ok" th:if="${tela.primeiraRespostaNoPrazo() == true}">no prazo</span>
+                                <span class="marca-prazo atrasado" th:if="${tela.primeiraRespostaNoPrazo() == false}">com atraso</span>
+                            </dd></div>
+                        <div><dt>Prazo de resolução</dt>
+                            <dd th:text="${c.prazoResolucao != null} ? ${#temporals.format(c.prazoResolucao, 'dd/MM/yyyy HH:mm')} : 'Sem prazo'">03/11/2026 17:12</dd></div>
+                        <div th:if="${tela.tempoPausado() != null}"><dt>Tempo pausado</dt>
+                            <dd th:text="${tela.tempoPausado()} + ' úteis'" title="Aguardando o solicitante: já somado aos prazos">1h 20min úteis</dd></div>
+                        <div th:if="${c.dataResolucao != null}"><dt>Resolvido em</dt>
+                            <dd th:text="${#temporals.format(c.dataResolucao, 'dd/MM/yyyy HH:mm')}">03/11/2026 15:00</dd></div>
+                        <div th:if="${c.dataFechamento != null}"><dt>Fechado em</dt>
+                            <dd th:text="${#temporals.format(c.dataFechamento, 'dd/MM/yyyy HH:mm')}">03/11/2026 16:00</dd></div>
+                    </dl>
+                </div>
+            </section>
+        </div>
+    </div>
+</th:block>
+</body>
+</html>

@@ -1,0 +1,95 @@
+# ============================================================
+# Sistema de Chamado - Goiás Esporte Clube
+# Perfil PROD (servidor da rede interna)
+#
+# Como usar:  java -jar chamados.jar --spring.profiles.active=prod
+#             (ou a variável de ambiente SPRING_PROFILES_ACTIVE=prod)
+#
+# Banco, usuário, senha e pasta de anexos vêm SÓ de variáveis de ambiente.
+# Se alguma faltar, o sistema NÃO sobe (de propósito, com a mensagem no log):
+#   CHAMADOS_DB_URL       ex.: jdbc:postgresql://localhost:5432/chamados
+#   CHAMADOS_DB_USER      ex.: chamados
+#   CHAMADOS_DB_PASSWORD  (a senha do usuário do banco)
+#   CHAMADOS_ANEXOS_DIR   ex.: D:/chamados/anexos
+# Opcional:
+#   CHAMADOS_LOG_DIR      pasta dos logs (padrão: "logs", ao lado do jar)
+#
+# Tudo o que não aparece aqui vem do application.yml (comum a todos os perfis):
+# porta 8081, sessão de 8 h, upload de 10 MB, fuso, páginas de erro sem detalhes etc.
+# Ver o guia: claude/guia-implantacao.md
+# ============================================================
+spring:
+  datasource:
+    url: ${CHAMADOS_DB_URL}
+    username: ${CHAMADOS_DB_USER}
+    password: ${CHAMADOS_DB_PASSWORD}
+    hikari:
+      maximum-pool-size: 10
+      pool-name: chamados
+
+  jpa:
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: false
+
+  flyway:
+    # Nunca apagar o banco por engano (o "clean" do Flyway apaga TODAS as tabelas)
+    clean-disabled: true
+    validate-on-migrate: true
+    baseline-on-migrate: false
+
+  thymeleaf:
+    cache: true
+
+  # Ferramentas de desenvolvimento desligadas (o bootJar já não leva o devtools; isto é só garantia)
+  devtools:
+    restart:
+      enabled: false
+    livereload:
+      enabled: false
+
+server:
+  servlet:
+    session:
+      cookie:
+        # O JavaScript da página não consegue ler o cookie de sessão
+        http-only: true
+        same-site: lax
+        # A intranet usa http://. Se um dia tiver https, trocar para true.
+        secure: false
+  error:
+    # Páginas de erro próprias, sem nenhum detalhe técnico (já é assim no application.yml; aqui fica explícito)
+    whitelabel:
+      enabled: false
+    include-stacktrace: never
+    include-message: never
+    include-exception: false
+    include-binding-errors: never
+
+chamados:
+  anexos:
+    diretorio: ${CHAMADOS_ANEXOS_DIR}
+  feriados:
+    # Em produção, o aviso de feriados usa sempre o ano de hoje
+    ano-de-referencia: ""
+
+# ------------------------------------------------------------
+# Logs em arquivo com rotação: um arquivo por dia (ou a cada 10 MB),
+# guardando 30 dias e no máximo 1 GB no total.
+# ------------------------------------------------------------
+logging:
+  file:
+    name: ${CHAMADOS_LOG_DIR:logs}/chamados.log
+  logback:
+    rollingpolicy:
+      file-name-pattern: ${CHAMADOS_LOG_DIR:logs}/chamados-%d{yyyy-MM-dd}.%i.log
+      max-file-size: 10MB
+      max-history: 30
+      total-size-cap: 1GB
+      clean-history-on-start: false
+  level:
+    root: INFO
+    br.com.goias.chamados: INFO
+    org.flywaydb: INFO
+    org.hibernate.SQL: WARN

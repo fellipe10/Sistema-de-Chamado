@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="pt-BR"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#006B3F">
+    <title layout:title-pattern="$CONTENT_TITLE · Central de Chamados">Central de Chamados</title>
+
+    <link rel="stylesheet" th:href="@{/vendor/bootstrap/bootstrap.min.css}">
+    <link rel="stylesheet" th:href="@{/vendor/bootstrap-icons/bootstrap-icons.min.css}">
+    <link rel="stylesheet" th:href="@{/css/tema-goias.css}">
+    <!-- CSS específico da página -->
+    <th:block layout:fragment="estilos"></th:block>
+</head>
+<body>
+<div class="layout-publico">
+
+    <!-- Topo verde -->
+    <header class="topo-publico">
+        <div class="conteudo-topo">
+            <a class="marca" th:href="@{/abrir}">
+                <img class="logo-img" th:src="@{/img/logo-goias.png}" alt="Goiás Esporte Clube"
+                     width="56" height="56">
+                <span>
+                    <span class="marca-nome">Central de Chamados</span>
+                    <span class="marca-sub">Goiás Esporte Clube · TI e Manutenção</span>
+                </span>
+            </a>
+            <!-- O controller informa a página atual em "menuAtivo" ('abrir' ou 'consultar') -->
+            <nav class="nav-publica" aria-label="Navegação pública">
+                <a th:href="@{/abrir}"
+                   th:classappend="${menuAtivo == 'abrir'} ? 'ativo'"
+                   th:attr="aria-current=${menuAtivo == 'abrir'} ? 'page'">
+                    <i class="bi bi-plus-circle" aria-hidden="true"></i> Abrir chamado
+                </a>
+                <a th:href="@{/consultar}"
+                   th:classappend="${menuAtivo == 'consultar'} ? 'ativo'"
+                   th:attr="aria-current=${menuAtivo == 'consultar'} ? 'page'">
+                    <i class="bi bi-search" aria-hidden="true"></i> Consultar chamado
+                </a>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Faixa verde de destaque (título e texto de cada página) -->
+    <section class="faixa-destaque">
+        <div class="conteudo-faixa" layout:fragment="destaque">
+            <h1>Central de Chamados</h1>
+            <p>TI e Manutenção do Goiás Esporte Clube.</p>
+        </div>
+    </section>
+
+    <!-- Card central sobreposto à faixa -->
+    <!-- cardEstreito = true deixa o card com 480 px (login, páginas de erro) -->
+    <main class="area-card-central" th:classappend="${cardEstreito} ? 'estreito'">
+        <div class="card-central">
+            <th:block layout:fragment="conteudo"></th:block>
+        </div>
+    </main>
+
+    <!-- Etapa 5: ramais e texto vêm de /admin/configuracoes (config/ParametrosSistema) -->
+    <footer class="rodape-publico" layout:fragment="rodape" th:text="${@parametrosSistema.rodapePublico()}">
+        Urgente de verdade? Ligue para o ramal da TI ou da Manutenção.
+    </footer>
+</div>
+
+<script th:src="@{/vendor/bootstrap/bootstrap.bundle.min.js}"></script>
+<!-- JS específico da página -->
+<th:block layout:fragment="scripts"></th:block>
+</body>
+</html>

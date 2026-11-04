@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="pt-BR"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/interno}">
+<head>
+    <title>Usuários</title>
+</head>
+<body>
+<th:block layout:fragment="conteudo">
+
+    <div class="cabecalho-pagina">
+        <div>
+            <a class="voltar-admin" th:href="@{/admin}"><i class="bi bi-arrow-left" aria-hidden="true"></i> Configurações</a>
+            <h1>Usuários</h1>
+            <p>Quem entra no sistema: atendentes, gestores e administradores.</p>
+        </div>
+        <a class="btn btn-primary" th:href="@{/admin/usuarios/novo}">
+            <i class="bi bi-person-plus" aria-hidden="true"></i> Novo usuário
+        </a>
+    </div>
+
+    <!-- Busca e filtros -->
+    <section class="card">
+        <form class="card-body filtros-admin" method="get" th:action="@{/admin/usuarios}" role="search">
+            <div class="campo-busca">
+                <label class="form-label" for="busca">Buscar</label>
+                <div class="input-icone">
+                    <i class="bi bi-search" aria-hidden="true"></i>
+                    <input class="form-control" id="busca" name="busca" type="search" maxlength="100"
+                           th:value="${filtros.busca()}" placeholder="Nome ou e-mail">
+                </div>
+            </div>
+            <div>
+                <label class="form-label" for="situacao">Situação</label>
+                <select class="form-select" id="situacao" name="situacao">
+                    <option value="ativos" th:selected="${filtros.situacao() == 'ativos'}">Ativos</option>
+                    <option value="inativos" th:selected="${filtros.situacao() == 'inativos'}">Inativos</option>
+                    <option value="todos" th:selected="${filtros.situacao() == 'todos'}">Todos</option>
+                </select>
+            </div>
+            <div>
+                <label class="form-label" for="perfil">Perfil</label>
+                <select class="form-select" id="perfil" name="perfil">
+                    <option value="">Todos</option>
+                    <option th:each="p : ${perfis}" th:value="${p.name()}" th:text="${p.descricao}"
+                            th:selected="${filtros.perfil() == p}">Atendente</option>
+                </select>
+            </div>
+            <div>
+                <label class="form-label" for="area">Área</label>
+                <select class="form-select" id="area" name="area">
+                    <option value="">Todas</option>
+                    <option th:each="a : ${areas}" th:value="${a.id()}" th:text="${a.rotulo()}"
+                            th:selected="${filtros.areaId() == a.id()}">TI</option>
+                </select>
+            </div>
+            <div class="botoes-filtro">
+                <button type="submit" class="btn btn-primary"><i class="bi bi-funnel" aria-hidden="true"></i> Filtrar</button>
+                <a class="btn btn-secundario" th:href="@{/admin/usuarios}" th:if="${filtros.algumAtivo()}">Limpar</a>
+            </div>
+        </form>
+    </section>
+
+    <section class="card">
+        <div class="card-body d-flex flex-column gap-3">
+            <div class="vazio" th:if="${#lists.isEmpty(usuarios)}">
+                <span class="icone" aria-hidden="true"><i class="bi bi-people"></i></span>
+                <strong>Nenhum usuário encontrado.</strong>
+                <a th:href="@{/admin/usuarios}" class="small fw-semibold" th:if="${filtros.algumAtivo()}">Limpar filtros</a>
+            </div>
+
+            <!-- Computador: tabela -->
+            <div class="tabela-admin" th:unless="${#lists.isEmpty(usuarios)}">
+                <table class="table tabela-limpa">
+                    <thead>
+                    <tr>
+                        <th scope="col">Nome</th>
+                        <th scope="col">Perfil</th>
+                        <th scope="col">Área</th>
+                        <th scope="col" class="text-end">Em andamento</th>
+                        <th scope="col">Situação</th>
+                        <th scope="col"><span class="visually-hidden">Ações</span></th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr th:each="u : ${usuarios}" class="linha-clicavel" th:classappend="${!u.ativo()} ? 'inativo'">
+                        <td>
+                            <div class="pessoa">
+                                <span class="avatar" th:classappend="${!u.ativo()} ? 'vazio'" th:text="${u.iniciais()}">RN</span>
+                                <span>
+                                    <a class="titulo link-chamado" th:href="@{/admin/usuarios/{id}(id=${u.id()})}" th:text="${u.nome()}">Rafael Nunes</a>
+                                    <span class="selo selo-publico ms-1" th:if="${u.ehVoce()}">Você</span>
+                                    <span class="subtitulo d-block" th:text="${u.email()}">rafael@goias.com.br</span>
+                                </span>
+                            </div>
+                        </td>
+                        <td><span class="badge-pilula" th:classappend="'perfil-' + ${#strings.toLowerCase(u.perfil().name())}"
+                                  th:text="${u.perfil().descricao}">Atendente</span></td>
+                        <td th:text="${u.areaNome() ?: 'Todas as áreas'}">TI</td>
+                        <td class="text-end tabular" th:text="${u.emAndamento()}">0</td>
+                        <td>
+                            <span class="badge-pilula com-ponto" th:classappend="${u.ativo()} ? 'sla-ok' : 'sla-sem'"
+                                  th:text="${u.ativo()} ? 'Ativo' : 'Inativo'">Ativo</span>
+                            <span class="badge-pilula sla-vence ms-1" th:if="${u.ativo() and u.trocarSenha()}"
+                                  title="Ainda não criou a própria senha">Senha temporária</span>
+                        </td>
+                        <td class="text-end">
+                            <a class="btn btn-sm btn-secundario" th:href="@{/admin/usuarios/{id}(id=${u.id()})}">Editar</a>
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Celular: cards -->
+            <ul class="cards-admin" th:unless="${#lists.isEmpty(usuarios)}">
+                <li th:each="u : ${usuarios}">
+                    <a th:href="@{/admin/usuarios/{id}(id=${u.id()})}" class="card-chamado">
+                        <span class="linha-topo">
+                            <span class="titulo" th:text="${u.nome()}">Rafael Nunes</span>
+                            <span class="badge-pilula com-ponto" th:classappend="${u.ativo()} ? 'sla-ok' : 'sla-sem'"
+                                  th:text="${u.ativo()} ? 'Ativo' : 'Inativo'">Ativo</span>
+                        </span>
+                        <span class="subtitulo" th:text="${u.email()}">rafael@goias.com.br</span>
+                        <span class="linha-badges">
+                            <span class="badge-pilula" th:classappend="'perfil-' + ${#strings.toLowerCase(u.perfil().name())}"
+                                  th:text="${u.perfil().descricao}">Atendente</span>
+                            <span class="badge-pilula sla-vence" th:if="${u.ativo() and u.trocarSenha()}">Senha temporária</span>
+                        </span>
+                        <span class="rodape-card">
+                            <span><i class="bi bi-diagram-3" aria-hidden="true"></i> <span th:text="${u.areaNome() ?: 'Todas as áreas'}">TI</span></span>
+                            <span><i class="bi bi-ticket-detailed" aria-hidden="true"></i>
+                                <span th:text="${u.emAndamento()} + ' em andamento'">0 em andamento</span></span>
+                        </span>
+                    </a>
+                </li>
+            </ul>
+
+            <p class="text-secondary small mb-0 tabular" th:unless="${#lists.isEmpty(usuarios)}"
+               th:text="${#lists.size(usuarios)} + (${#lists.size(usuarios) == 1} ? ' usuário' : ' usuários')">4 usuários</p>
+        </div>
+    </section>
+</th:block>
+</body>
+</html>

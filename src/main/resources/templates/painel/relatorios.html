@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="pt-BR"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/interno}">
+<head>
+    <title>Relatórios</title>
+</head>
+<body>
+<!--
+    Relatórios (GET /painel/relatorios): chamados ABERTOS no período, da área, com filtros
+    de status, prioridade, categoria e atendente. 20 por página. Mesmo visual da fila.
+    "Exportar" baixa o CSV com os mesmos filtros.
+-->
+<th:block layout:fragment="conteudo" th:with="pe=${tela.periodo()}, f=${tela.filtros()}, pg=${tela.paginacao()}">
+
+    <div class="cabecalho-pagina">
+        <div>
+            <h1>Relatórios</h1>
+            <p>
+                <span th:text="${tela.area().nome()}">TI</span> ·
+                <strong class="tabular" th:text="${pg.totalItens()}">14</strong>
+                <span th:text="${pg.totalItens() == 1} ? 'chamado aberto' : 'chamados abertos'">chamados abertos</span> ·
+                <span th:text="${pe.descricao()}">últimos 30 dias</span>
+            </p>
+        </div>
+        <div class="acoes-painel">
+            <form th:replace="~{painel/fragmentos :: seletorArea(${tela.area()}, '/painel/relatorios', ${pe.parametros()})}"></form>
+            <div th:replace="~{painel/fragmentos :: filtroPeriodo(${tela.opcoesPeriodo()}, ${pe}, '/painel/relatorios', ${tela.ocultosPeriodo()})}"></div>
+            <a class="btn btn-outline-primary botao-exportar" th:href="@{${tela.urlExportar()}}"
+               title="Baixar planilha (CSV) com os chamados desta lista">
+                <i class="bi bi-download" aria-hidden="true"></i> Exportar
+            </a>
+        </div>
+    </div>
+
+    <div class="alert alert-warning mb-0" role="alert" th:if="${pe.erro() != null}">
+        <i class="bi bi-exclamation-circle" aria-hidden="true"></i>
+        <span th:text="${pe.erro()} + ' Mostrando os últimos 30 dias.'">Período inválido.</span>
+    </div>
+
+    <!-- Filtros -->
+    <section class="card">
+        <form class="card-body filtros-relatorio" method="get" th:action="@{/painel/relatorios}">
+            <input type="hidden" th:each="e : ${pe.parametros()}" th:name="${e.key}" th:value="${e.value}">
+            <input type="hidden" th:each="e : ${tela.area().parametro()}" th:name="${e.key}" th:value="${e.value}">
+            <div>
+                <label class="form-label" for="status">Status</label>
+                <select class="form-select" id="status" name="status">
+                    <option value="">Todos</option>
+                    <option th:each="s : ${tela.opcoesStatus()}" th:value="${s.name()}" th:text="${s.descricao}"
+                            th:selected="${f.status() == s}">Aberto</option>
+                </select>
+            </div>
+            <div>
+                <label class="form-label" for="prioridade">Prioridade</label>
+                <select class="form-select" id="prioridade" name="prioridade">
+                    <option value="">Todas</option>
+                    <option th:each="p : ${tela.opcoesPrioridade()}" th:value="${p.name()}" th:text="${p.descricao}"
+                            th:selected="${f.prioridade() == p}">Alta</option>
+                </select>
+            </div>
+            <div>
+                <label class="form-label" for="categoria">Categoria</label>
+                <select class="form-select" id="categoria" name="categoria">
+                    <option value="">Todas</option>
+                    <option th:each="c : ${tela.opcoesCategoria()}" th:value="${c.id()}" th:text="${c.nome()}"
+                            th:selected="${f.categoriaId() == c.id()}">Impressora e scanner</option>
+                </select>
+            </div>
+            <div>
+                <label class="form-label" for="atendente">Atendente</label>
+                <select class="form-select" id="atendente" name="atendente">
+                    <option value="">Todos</option>
+                    <option th:each="a : ${tela.opcoesAtendente()}" th:value="${a.id()}" th:text="${a.nome()}"
+                            th:selected="${f.atendenteId() == a.id()}">Rafael Nunes</option>
+                </select>
+            </div>
+            <div class="botoes-filtro">
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-funnel" aria-hidden="true"></i> Filtrar
+                </button>
+                <a class="btn btn-secundario" th:href="@{${tela.urlLimpar()}}" th:if="${f.algumAtivo()}">Limpar</a>
+            </div>
+        </form>
+    </section>
+
+    <!-- Lista -->
+    <section class="card">
+        <div class="card-body d-flex flex-column gap-3">
+
+            <div class="vazio" th:if="${#lists.isEmpty(tela.linhas())}">
+                <span class="icone" aria-hidden="true"><i class="bi bi-inbox"></i></span>
+                <strong th:text="${f.algumAtivo()} ? 'Nenhum chamado encontrado com esses filtros.' : 'Nenhum chamado aberto no período.'">
+                    Nenhum chamado aberto no período.</strong>
+                <a th:href="@{${tela.urlLimpar()}}" class="small fw-semibold" th:if="${f.algumAtivo()}">Limpar filtros</a>
+            </div>
+
+            <!-- Computador: tabela -->
+            <div class="tabela-fila tabela-relatorio" th:unless="${#lists.isEmpty(tela.linhas())}">
+                <table class="table tabela-limpa">
+                    <thead>
+                    <tr>
+                        <th scope="col">Código</th>
+                        <th scope="col">Chamado</th>
+                        <th scope="col">Abertura</th>
+                        <th scope="col">Categoria</th>
+                        <th scope="col">Prioridade</th>
+                        <th scope="col">Status</th>
+                        <th scope="col">Atendente</th>
+                        <th scope="col">Prazo</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr th:each="r : ${tela.linhas()}" th:with="l=${r.linha()}" class="linha-clicavel">
+                        <td class="protocolo">
+                            <a th:href="@{/atendimento/{id}(id=${l.id()})}" th:text="${l.protocolo()}">TI-2026-7K3F</a>
+                        </td>
+                        <td class="col-titulo">
+                            <a class="titulo link-chamado" th:href="@{/atendimento/{id}(id=${l.id()})}"
+                               th:text="${l.titulo()}">Impressora do financeiro não imprime</a>
+                            <div class="subtitulo" th:text="${l.solicitanteNome() + ' · ' + l.setorNome()}">Ana Souza · Financeiro</div>
+                        </td>
+                        <td class="data" th:text="${#temporals.format(r.abertura(), 'dd/MM/yyyy HH:mm')}">03/11/2026 09:12</td>
+                        <td class="text-secondary" th:text="${l.categoriaNome()}">Impressora e scanner</td>
+                        <td><span class="badge-pilula" th:classappend="${l.classePrioridade()}"
+                                  th:text="${l.prioridade().descricao}">Alta</span></td>
+                        <td><span class="badge-pilula" th:classappend="${l.classeStatus()}"
+                                  th:text="${l.status().descricao}">Aberto</span></td>
+                        <td th:text="${l.atendentePrimeiroNome() ?: '—'}">—</td>
+                        <td><span class="badge-pilula com-ponto" th:classappend="${l.badgeSla().classe()}"
+                                  th:title="${l.badgeSla().dica()}" th:text="${l.badgeSla().texto()}">No prazo</span></td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Celular: cards -->
+            <ul class="cards-fila" th:unless="${#lists.isEmpty(tela.linhas())}">
+                <li th:each="r : ${tela.linhas()}" th:with="l=${r.linha()}">
+                    <a th:href="@{/atendimento/{id}(id=${l.id()})}" class="card-chamado">
+                        <span class="linha-topo">
+                            <span class="protocolo" th:text="${l.protocolo()}">TI-2026-7K3F</span>
+                            <span class="badge-pilula com-ponto" th:classappend="${l.badgeSla().classe()}"
+                                  th:text="${l.badgeSla().texto()}">No prazo</span>
+                        </span>
+                        <span class="titulo" th:text="${l.titulo()}">Impressora do financeiro não imprime</span>
+                        <span class="subtitulo" th:text="${l.solicitanteNome() + ' · ' + l.setorNome()}">Ana Souza · Financeiro</span>
+                        <span class="linha-badges">
+                            <span class="badge-pilula" th:classappend="${l.classeStatus()}"
+                                  th:text="${l.status().descricao}">Aberto</span>
+                            <span class="badge-pilula" th:classappend="${l.classePrioridade()}"
+                                  th:text="${l.prioridade().descricao}">Alta</span>
+                        </span>
+                        <span class="rodape-card">
+                            <span><i class="bi bi-calendar3" aria-hidden="true"></i>
+                                <span th:text="${#temporals.format(r.abertura(), 'dd/MM HH:mm')}">03/11 09:12</span></span>
+                            <span><i class="bi bi-person" aria-hidden="true"></i>
+                                <span th:text="${l.atendentePrimeiroNome() ?: 'Sem atendente'}">Sem atendente</span></span>
+                        </span>
+                    </a>
+                </li>
+            </ul>
+
+            <!-- Paginação (20 por página) -->
+            <nav class="paginacao" th:if="${pg.totalItens() > 0}" aria-label="Páginas">
+                <span class="text-secondary small tabular"
+                      th:text="'Mostrando ' + ${pg.primeiroItem()} + '–' + ${pg.ultimoItem()} + ' de ' + ${pg.totalItens()}">
+                    Mostrando 1–20 de 45</span>
+                <ul th:if="${pg.totalPaginas() > 1}">
+                    <li>
+                        <a th:if="${pg.temAnterior()}" th:href="@{${tela.urlPagina(pg.pagina() - 1)}}" aria-label="Página anterior">
+                            <i class="bi bi-chevron-left" aria-hidden="true"></i></a>
+                        <span th:unless="${pg.temAnterior()}" class="desabilitado" aria-hidden="true">
+                            <i class="bi bi-chevron-left"></i></span>
+                    </li>
+                    <li th:each="n : ${pg.paginasVisiveis()}">
+                        <a th:href="@{${tela.urlPagina(n)}}" th:text="${n}"
+                           th:classappend="${n == pg.pagina()} ? 'atual'"
+                           th:attr="aria-current=${n == pg.pagina()} ? 'page'">1</a>
+                    </li>
+                    <li>
+                        <a th:if="${pg.temProxima()}" th:href="@{${tela.urlPagina(pg.pagina() + 1)}}" aria-label="Próxima página">
+                            <i class="bi bi-chevron-right" aria-hidden="true"></i></a>
+                        <span th:unless="${pg.temProxima()}" class="desabilitado" aria-hidden="true">
+                            <i class="bi bi-chevron-right"></i></span>
+                    </li>
+                </ul>
+            </nav>
+        </div>
+    </section>
+</th:block>
+
+<th:block layout:fragment="scripts">
+    <script th:src="@{/js/painel.js}"></script>
+</th:block>
+</body>
+</html>

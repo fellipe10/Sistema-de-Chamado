@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="pt-BR"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/publico}"
+      th:with="cardEstreito=true">
+<head>
+    <title>Não foi possível continuar</title>
+</head>
+<body>
+<!-- Página genérica para qualquer outro erro (400, 405, 413, 429...). "status" vem do Spring Boot. -->
+<div layout:fragment="destaque" class="conteudo-faixa centralizado">
+    <h1>Não foi possível continuar.</h1>
+    <p>O pedido não pôde ser atendido.</p>
+</div>
+<th:block layout:fragment="conteudo">
+    <div th:replace="~{layout/erro :: conteudo('bi-exclamation-circle', ${status != null ? status : ''},
+                     'Não foi possível concluir',
+                     'Volte para a página anterior e tente de novo. Se o problema continuar, avise a TI.')}"></div>
+</th:block>
+</body>
+</html>
