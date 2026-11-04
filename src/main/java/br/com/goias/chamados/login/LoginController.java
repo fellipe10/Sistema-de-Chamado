@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.GetMapping;
  * Tela de login e página inicial ("/").
  *
  * Mensagens da tela de login:
- * - /login?erro → "E-mail ou senha incorretos." (vale também para usuário inativo)
+ * - /login?erro → "Usuário ou senha incorretos." (vale também para usuário inativo)
  * - /login?saiu → "Você saiu do sistema."
  */
 @Controller

@@ -6,6 +6,8 @@ import br.com.goias.chamados.config.TelaInterna;
 import br.com.goias.chamados.dominio.usuario.Perfil;
 import br.com.goias.chamados.login.UsuarioLogado;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.OptimisticLockingFailureException;
+import org.springframework.http.MediaType;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -16,6 +18,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.util.Arrays;
@@ -30,13 +33,17 @@ import java.util.Map;
  * GET  /admin/usuarios/{id}                → editar
  * POST /admin/usuarios/{id}                → salvar
  * POST /admin/usuarios/{id}/redefinir-senha
- * POST /admin/usuarios/{id}/desativar | /reativar
+ * POST /admin/usuarios/{id}/desativar (com devolverChamados=true para devolver os chamados à fila) | /reativar
+ * GET  /admin/usuarios/sugerir-login?nome=...&id=... → sugestão de usuário livre (texto puro, usado pelo admin.js)
  */
 @Controller
 @TelaInterna
 @RequestMapping("/admin/usuarios")
 @RequiredArgsConstructor
 public class UsuariosController {
+
+    static final String MENSAGEM_CONFLITO = "Um dos chamados desta pessoa foi alterado por outro atendente "
+            + "neste mesmo instante. Nada foi salvo: confira e tente de novo.";
 
     private final UsuariosService service;
 
@@ -59,6 +66,14 @@ public class UsuariosController {
         model.addAttribute("perfis", Perfil.values());
         model.addAttribute("menuAtivo", "configuracoes");
         return "admin/usuarios/lista";
+    }
+
+    /** Sugestão de usuário (login) ainda livre, a partir do nome. Texto puro; vazio se o nome não der sugestão. */
+    @GetMapping(value = "/sugerir-login", produces = MediaType.TEXT_PLAIN_VALUE)
+    @ResponseBody
+    public String sugerirLogin(@RequestParam(required = false) String nome,
+                               @RequestParam(required = false) Long id) {
+        return service.sugerirLogin(nome, id);
     }
 
     @GetMapping("/novo")
@@ -86,6 +101,7 @@ public class UsuariosController {
                 .orElseThrow(() -> new RegistroNaoEncontradoException("Usuário", id));
         UsuarioForm form = new UsuarioForm();
         form.setNome(d.nome());
+        form.setLogin(d.login());
         form.setEmail(d.email());
         form.setPerfil(d.perfil());
         form.setAreaId(d.areaId());
@@ -99,7 +115,13 @@ public class UsuariosController {
                          Model model, RedirectAttributes redirect) {
         UsuariosService.Detalhe d = service.detalhe(id, admin)
                 .orElseThrow(() -> new RegistroNaoEncontradoException("Usuário", id));
-        UsuariosService.Resultado r = service.salvar(id, form, admin);
+        UsuariosService.Resultado r;
+        try {
+            r = service.salvar(id, form, admin);
+        } catch (OptimisticLockingFailureException e) {
+            redirect.addFlashAttribute("erro", MENSAGEM_CONFLITO);
+            return "redirect:/admin/usuarios/" + id;
+        }
         if (!r.sucesso()) {
             prepararFormulario(model, form, r.erros(), d);
             model.addAttribute("confirmarArea", r.confirmarArea());
@@ -126,14 +148,30 @@ public class UsuariosController {
         return "redirect:/admin/usuarios/" + id;
     }
 
+    /**
+     * Desativar. A caixa "Devolver os chamados dele para a fila" já vem marcada na tela
+     * (só aparece quando a pessoa tem chamados em andamento). Caixa desmarcada = o navegador não envia o campo
+     * = os chamados continuam com a pessoa (comportamento da Etapa 5).
+     */
     @PostMapping("/{id}/desativar")
     public String desativar(@PathVariable Long id, @AuthenticationPrincipal UsuarioLogado admin,
+                            @RequestParam(defaultValue = "false") boolean devolverChamados,
                             RedirectAttributes redirect) {
-        UsuariosService.ResultadoSituacao r = service.alterarSituacao(id, false, admin);
+        UsuariosService.ResultadoSituacao r;
+        try {
+            r = service.alterarSituacao(id, false, devolverChamados, admin);
+        } catch (OptimisticLockingFailureException e) {
+            redirect.addFlashAttribute("erro", MENSAGEM_CONFLITO);
+            return "redirect:/admin/usuarios/" + id;
+        }
         if (r.erro() != null) {
             redirect.addFlashAttribute("erro", r.erro());
         } else {
-            redirect.addFlashAttribute("sucesso", r.nome() + " foi desativado(a) e desconectado(a) do sistema.");
+            redirect.addFlashAttribute("sucesso", r.nome() + " foi desativado(a) e desconectado(a) do sistema."
+                    + (r.devolvidos() > 0
+                    ? " " + r.devolvidos() + (r.devolvidos() == 1 ? " chamado voltou" : " chamados voltaram")
+                      + " para a fila, sem responsável."
+                    : ""));
             if (r.emAndamento() > 0) {
                 redirect.addFlashAttribute("chamadosDoDesativado", r.emAndamento());
                 redirect.addFlashAttribute("linkFilaDesativado", linkFila(id, r.areaId()));
@@ -145,7 +183,7 @@ public class UsuariosController {
     @PostMapping("/{id}/reativar")
     public String reativar(@PathVariable Long id, @AuthenticationPrincipal UsuarioLogado admin,
                            RedirectAttributes redirect) {
-        UsuariosService.ResultadoSituacao r = service.alterarSituacao(id, true, admin);
+        UsuariosService.ResultadoSituacao r = service.alterarSituacao(id, true, false, admin);
         if (r.erro() != null) {
             redirect.addFlashAttribute("erro", r.erro());
         } else {

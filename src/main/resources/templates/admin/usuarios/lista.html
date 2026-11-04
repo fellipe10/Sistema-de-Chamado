@@ -28,7 +28,7 @@
                 <div class="input-icone">
                     <i class="bi bi-search" aria-hidden="true"></i>
                     <input class="form-control" id="busca" name="busca" type="search" maxlength="100"
-                           th:value="${filtros.busca()}" placeholder="Nome ou e-mail">
+                           th:value="${filtros.busca()}" placeholder="Nome, usuário ou e-mail">
                 </div>
             </div>
             <div>
@@ -91,7 +91,10 @@
                                 <span>
                                     <a class="titulo link-chamado" th:href="@{/admin/usuarios/{id}(id=${u.id()})}" th:text="${u.nome()}">Rafael Nunes</a>
                                     <span class="selo selo-publico ms-1" th:if="${u.ehVoce()}">Você</span>
-                                    <span class="subtitulo d-block" th:text="${u.email()}">rafael@goias.com.br</span>
+                                    <span class="subtitulo d-block">
+                                        <span class="login-usuario" th:text="${u.login()}">rafael.nunes</span>
+                                        <th:block th:if="${u.email() != null}"> · <span th:text="${u.email()}">rafael@goias.com.br</span></th:block>
+                                    </span>
                                 </span>
                             </div>
                         </td>
@@ -122,7 +125,10 @@
                             <span class="badge-pilula com-ponto" th:classappend="${u.ativo()} ? 'sla-ok' : 'sla-sem'"
                                   th:text="${u.ativo()} ? 'Ativo' : 'Inativo'">Ativo</span>
                         </span>
-                        <span class="subtitulo" th:text="${u.email()}">rafael@goias.com.br</span>
+                        <span class="subtitulo">
+                            <span class="login-usuario" th:text="${u.login()}">rafael.nunes</span>
+                            <th:block th:if="${u.email() != null}"> · <span th:text="${u.email()}">rafael@goias.com.br</span></th:block>
+                        </span>
                         <span class="linha-badges">
                             <span class="badge-pilula" th:classappend="'perfil-' + ${#strings.toLowerCase(u.perfil().name())}"
                                   th:text="${u.perfil().descricao}">Atendente</span>

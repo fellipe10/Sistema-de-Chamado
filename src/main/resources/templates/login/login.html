@@ -19,12 +19,12 @@
         <div class="cabecalho text-center">
             <img class="logo-login" th:src="@{/img/logo-goias.png}" alt="" width="64" height="64">
             <h2>Entrar</h2>
-            <p>Use seu e-mail e a senha cadastrada pelo administrador.</p>
+            <p>Use seu usuário (nome.sobrenome) e a senha cadastrada pelo administrador.</p>
         </div>
 
         <div class="alert alert-danger mb-0" role="alert" th:if="${param.erro != null}">
             <i class="bi bi-exclamation-circle" aria-hidden="true"></i>
-            E-mail ou senha incorretos.
+            Usuário ou senha incorretos.
         </div>
         <div class="alert alert-success mb-0" role="status" th:if="${param.saiu != null}">
             <i class="bi bi-check-circle" aria-hidden="true"></i>
@@ -37,10 +37,10 @@
 
         <div class="d-flex flex-column gap-3">
             <div>
-                <label class="form-label" for="email">E-mail</label>
-                <input class="form-control" id="email" name="email" type="email" maxlength="150"
-                       autocomplete="username" autofocus required placeholder="voce@goiasec.com.br"
-                       autocapitalize="none" spellcheck="false"
+                <label class="form-label" for="usuario">Usuário</label>
+                <input class="form-control" id="usuario" name="usuario" type="text" maxlength="60"
+                       autocomplete="username" autofocus required placeholder="nome.sobrenome"
+                       autocapitalize="none" autocorrect="off" spellcheck="false"
                        th:classappend="${param.erro != null} ? 'is-invalid'">
             </div>
             <div>

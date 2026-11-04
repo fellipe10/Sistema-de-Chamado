@@ -1869,3 +1869,17 @@ tr.passado .data-feriado .dia { background: var(--st-neutro-bg); color: var(--go
 .btn-excluir:hover { color: var(--sla-atrasado-fg); border-color: #F6CFCB; }
 .aviso-recalculo .btn { white-space: normal; text-align: left; }
 @media (max-width: 575.98px) { .aviso-recalculo .btn { width: 100%; justify-content: center; text-align: center; } }
+
+/* ============================================================
+   AJUSTE — LOGIN POR USUÁRIO (V8)
+   ============================================================ */
+/* Usuário (login) na lista e no cabeçalho do cadastro: discreto, mas fácil de ler e ditar */
+.login-usuario {
+    font-weight: 600;
+    color: var(--goias-texto);
+    letter-spacing: .01em;
+}
+.login-usuario .bi {
+    margin-right: .15rem;
+}
+

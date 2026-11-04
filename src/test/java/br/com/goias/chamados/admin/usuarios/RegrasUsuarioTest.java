@@ -8,47 +8,103 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class RegrasUsuarioTest {
 
+    /** Atalho: login válido, sem login atual (criação). */
+    private static java.util.Map<String, String> validar(String nome, String email, Perfil perfil, Long area, boolean ativa) {
+        return RegrasUsuario.validarCampos(nome, "rafael.nunes", null, email, perfil, area, ativa);
+    }
+
     // ---------- área obrigatória por perfil ----------
 
     @Test
     @DisplayName("Atendente e gestor sem área: recusado")
     void areaObrigatoriaParaAtendenteEGestor() {
-        assertThat(RegrasUsuario.validarCampos("Rafael", "r@goias.com.br", Perfil.ATENDENTE, null, false))
+        assertThat(validar("Rafael", "r@goias.com.br", Perfil.ATENDENTE, null, false))
                 .containsEntry("areaId", RegrasUsuario.AREA_OBRIGATORIA);
-        assertThat(RegrasUsuario.validarCampos("Carla", "c@goias.com.br", Perfil.GESTOR, null, false))
+        assertThat(validar("Carla", "c@goias.com.br", Perfil.GESTOR, null, false))
                 .containsEntry("areaId", RegrasUsuario.AREA_OBRIGATORIA);
     }
 
     @Test
     @DisplayName("Atendente com área inativa ou inexistente: recusado")
     void areaInativa() {
-        assertThat(RegrasUsuario.validarCampos("Rafael", "r@goias.com.br", Perfil.ATENDENTE, 9L, false))
+        assertThat(validar("Rafael", "r@goias.com.br", Perfil.ATENDENTE, 9L, false))
                 .containsEntry("areaId", RegrasUsuario.AREA_INVALIDA);
     }
 
     @Test
     @DisplayName("Admin sem área é aceito; atendente com área ativa também")
     void adminSemArea() {
-        assertThat(RegrasUsuario.validarCampos("Ana", "ana@goias.com.br", Perfil.ADMIN, null, false)).isEmpty();
-        assertThat(RegrasUsuario.validarCampos("Rafael", "r@goias.com.br", Perfil.ATENDENTE, 1L, true)).isEmpty();
+        assertThat(validar("Ana", "ana@goias.com.br", Perfil.ADMIN, null, false)).isEmpty();
+        assertThat(validar("Rafael", "r@goias.com.br", Perfil.ATENDENTE, 1L, true)).isEmpty();
         assertThat(RegrasUsuario.precisaDeArea(Perfil.ADMIN)).isFalse();
         assertThat(RegrasUsuario.precisaDeArea(Perfil.ATENDENTE)).isTrue();
         assertThat(RegrasUsuario.precisaDeArea(Perfil.GESTOR)).isTrue();
     }
 
     @Test
-    @DisplayName("Nome, e-mail e perfil obrigatórios; e-mail com formato válido")
+    @DisplayName("Nome, usuário e perfil obrigatórios; e-mail opcional, mas com formato válido se preenchido")
     void camposObrigatorios() {
-        var erros = RegrasUsuario.validarCampos("  ", "", null, null, false);
+        var erros = RegrasUsuario.validarCampos("  ", "  ", null, "", null, null, false);
         assertThat(erros).containsEntry("nome", RegrasUsuario.NOME_OBRIGATORIO)
-                .containsEntry("email", RegrasUsuario.EMAIL_OBRIGATORIO)
-                .containsEntry("perfil", RegrasUsuario.PERFIL_OBRIGATORIO);
-        assertThat(RegrasUsuario.validarCampos("A", "rafael@", Perfil.ADMIN, null, false))
+                .containsEntry("login", "Informe o usuário.")
+                .containsEntry("perfil", RegrasUsuario.PERFIL_OBRIGATORIO)
+                .doesNotContainKey("email");
+        assertThat(validar("A", "rafael@", Perfil.ADMIN, null, false))
                 .containsEntry("email", RegrasUsuario.EMAIL_INVALIDO);
-        assertThat(RegrasUsuario.validarCampos("A", "ra fa@x.com", Perfil.ADMIN, null, false))
+        assertThat(validar("A", "ra fa@x.com", Perfil.ADMIN, null, false))
                 .containsEntry("email", RegrasUsuario.EMAIL_INVALIDO);
-        assertThat(RegrasUsuario.validarCampos("A".repeat(121), "a@x.com", Perfil.ADMIN, null, false))
+        assertThat(validar("A".repeat(121), "a@x.com", Perfil.ADMIN, null, false))
                 .containsEntry("nome", RegrasUsuario.NOME_LONGO);
+    }
+
+    @Test
+    @DisplayName("E-mail vazio ou só espaços é aceito (vira null)")
+    void emailOpcional() {
+        assertThat(validar("Ana", null, Perfil.ADMIN, null, false)).isEmpty();
+        assertThat(validar("Ana", "   ", Perfil.ADMIN, null, false)).isEmpty();
+        assertThat(RegrasUsuario.normalizarEmail("   ")).isNull();
+        assertThat(RegrasUsuario.normalizarEmail("")).isNull();
+    }
+
+    @Test
+    @DisplayName("Usuário (login): formato conferido depois de normalizar (maiúsculas, acentos e espaços nas pontas)")
+    void login() {
+        assertThat(RegrasUsuario.validarCampos("Ana", "  Ana.Souza ", null, null, Perfil.ADMIN, null, false)).isEmpty();
+        assertThat(RegrasUsuario.validarCampos("Ana", "anä.souza", null, null, Perfil.ADMIN, null, false)).isEmpty();
+        assertThat(RegrasUsuario.normalizarLogin("  Ana.Souza ")).isEqualTo("ana.souza");
+        assertThat(RegrasUsuario.validarCampos("Ana", "ana souza", null, null, Perfil.ADMIN, null, false))
+                .containsKey("login");
+        assertThat(RegrasUsuario.validarCampos("Ana", "ana..souza", null, null, Perfil.ADMIN, null, false))
+                .containsKey("login");
+        assertThat(RegrasUsuario.validarCampos("Ana", "an", null, null, Perfil.ADMIN, null, false))
+                .containsKey("login");
+    }
+
+    @Test
+    @DisplayName("Logins dos usuários de teste são reservados, exceto para quem já tem")
+    void loginReservado() {
+        assertThat(RegrasUsuario.validarCampos("Rafael", "atendente.ti", null, null, Perfil.ATENDENTE, 1L, true))
+                .containsEntry("login", RegrasUsuario.LOGIN_RESERVADO);
+        assertThat(RegrasUsuario.validarCampos("Rafael", " Gestor.Man ", null, null, Perfil.GESTOR, 1L, true))
+                .containsEntry("login", RegrasUsuario.LOGIN_RESERVADO);
+        // Editar o próprio usuário de teste (login não muda) continua funcionando no dev
+        assertThat(RegrasUsuario.validarCampos("Rafael Nunes", "atendente.ti", "atendente.ti", null,
+                Perfil.ATENDENTE, 1L, true)).isEmpty();
+        assertThat(RegrasUsuario.loginReservado("atendente.ti")).isTrue();
+        assertThat(RegrasUsuario.loginReservado("rafael.nunes")).isFalse();
+    }
+
+    @Test
+    @DisplayName("Mudar usuário, perfil ou área muda o acesso (encerra sessões); só o e-mail, não")
+    void mudouAcesso() {
+        assertThat(RegrasUsuario.mudouAcesso("rafael.nunes", " Rafael.Nunes ", Perfil.ATENDENTE, Perfil.ATENDENTE, 1L, 1L))
+                .isFalse();
+        assertThat(RegrasUsuario.mudouAcesso("rafael.nunes", "rafael.n", Perfil.ATENDENTE, Perfil.ATENDENTE, 1L, 1L))
+                .isTrue();
+        assertThat(RegrasUsuario.mudouAcesso("rafael.nunes", "rafael.nunes", Perfil.ATENDENTE, Perfil.GESTOR, 1L, 1L))
+                .isTrue();
+        assertThat(RegrasUsuario.mudouAcesso("rafael.nunes", "rafael.nunes", Perfil.ATENDENTE, Perfil.ATENDENTE, 1L, 2L))
+                .isTrue();
     }
 
     @Test
@@ -58,8 +114,6 @@ class RegrasUsuarioTest {
         assertThat(RegrasUsuario.normalizarNome("  Marcos   Tavares ")).isEqualTo("Marcos Tavares");
         assertThat(RegrasUsuario.normalizarEmail(null)).isNull();
     }
-
-    // ---------- proteções do admin ----------
 
     @Test
     @DisplayName("Admin não desativa a si mesmo")

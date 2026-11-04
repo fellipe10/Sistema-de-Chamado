@@ -15,10 +15,16 @@ import lombok.Setter;
 public class UsuarioForm {
 
     private String nome;
+    /** Usuário para entrar (V8): nome.sobrenome. Obrigatório. */
+    private String login;
+    /** E-mail de contato. Opcional desde a V8. */
     private String email;
     private Perfil perfil;
     private Long areaId;
 
-    /** Marcado quando o admin confirma a mudança de área de quem tem chamados em andamento. */
+    /**
+     * Marcado quando o admin confirma a mudança de área de quem tem chamados em andamento.
+     * Ao confirmar, esses chamados voltam para a fila da área antiga.
+     */
     private boolean confirmarMudancaArea;
 }

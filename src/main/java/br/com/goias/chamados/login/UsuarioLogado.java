@@ -14,7 +14,7 @@ import java.util.Locale;
 
 /**
  * Dados do usuário guardados na sessão depois do login.
- * Nas telas: ${#authentication.principal.nome}, .perfil, .areaNome, .iniciais
+ * Nas telas: ${#authentication.principal.nome}, .login, .perfil, .areaNome, .iniciais
  *
  * Depois de trocar a senha, o objeto da sessão é substituído por um novo
  * (ver conta/ContaController), porque este é imutável.
@@ -24,6 +24,9 @@ public class UsuarioLogado implements UserDetails {
 
     private final Long id;
     private final String nome;
+    /** Usuário usado para entrar (V8). */
+    private final String login;
+    /** E-mail de contato (opcional desde a V8; pode ser null). */
     private final String email;
     private final String senhaHash;
     private final Perfil perfil;
@@ -37,6 +40,7 @@ public class UsuarioLogado implements UserDetails {
     public UsuarioLogado(Usuario usuario) {
         this.id = usuario.getId();
         this.nome = usuario.getNome();
+        this.login = usuario.getLogin();
         this.email = usuario.getEmail();
         this.senhaHash = usuario.getSenhaHash();
         this.perfil = usuario.getPerfil();
@@ -94,9 +98,10 @@ public class UsuarioLogado implements UserDetails {
         return senhaHash;
     }
 
+    /** Para o Spring Security, o "username" é o login (V8), não mais o e-mail. */
     @Override
     public String getUsername() {
-        return email;
+        return login;
     }
 
     @Override

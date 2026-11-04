@@ -1,6 +1,8 @@
 package br.com.goias.chamados.admin.usuarios;
 
+import br.com.goias.chamados.config.UsuariosTesteDev;
 import br.com.goias.chamados.dominio.usuario.Perfil;
+import br.com.goias.chamados.dominio.usuario.RegrasLogin;
 
 import java.util.LinkedHashMap;
 import java.util.Locale;
@@ -11,7 +13,10 @@ import java.util.regex.Pattern;
 /**
  * Regras do cadastro de usuários (sem banco, fáceis de testar).
  *
- * - nome e e-mail obrigatórios; e-mail com formato válido, sempre em minúsculas;
+ * - nome e usuário (login) obrigatórios; o usuário segue {@link RegrasLogin} e é gravado normalizado;
+ * - e-mail OPCIONAL (V8, só contato); se preenchido, formato válido e sempre em minúsculas;
+ * - os logins dos usuários de teste do perfil dev (atendente.ti, gestor.ti...) são reservados:
+ *   ninguém pode ganhar um deles pelo cadastro, porque em produção eles são desativados ao subir;
  * - ATENDENTE e GESTOR precisam de área; ADMIN fica sem área;
  * - o admin não pode desativar a própria conta nem mudar o próprio perfil;
  * - o sistema nunca pode ficar sem nenhum ADMIN ativo.
@@ -23,8 +28,10 @@ public final class RegrasUsuario {
 
     static final String NOME_OBRIGATORIO = "Informe o nome.";
     static final String NOME_LONGO = "O nome pode ter no máximo " + NOME_MAXIMO + " caracteres.";
-    static final String EMAIL_OBRIGATORIO = "Informe o e-mail.";
-    static final String EMAIL_INVALIDO = "Informe um e-mail válido.";
+    static final String LOGIN_SUGERIDO = "Informe o usuário. Preenchemos uma sugestão a partir do nome: confira e salve de novo.";
+    static final String LOGIN_REPETIDO = "Já existe um usuário com este login. Escolha outro (ex.: com -2 no fim).";
+    static final String LOGIN_RESERVADO = "Este usuário é reservado para os testes do sistema. Escolha outro.";
+    static final String EMAIL_INVALIDO = "Informe um e-mail válido ou deixe em branco.";
     static final String EMAIL_LONGO = "O e-mail pode ter no máximo " + EMAIL_MAXIMO + " caracteres.";
     static final String EMAIL_REPETIDO = "Já existe um usuário com este e-mail.";
     static final String PERFIL_OBRIGATORIO = "Escolha o perfil.";
@@ -40,9 +47,18 @@ public final class RegrasUsuario {
     private RegrasUsuario() {
     }
 
-    /** E-mail sem espaços nas pontas e em minúsculas (null continua null). */
+    /** E-mail sem espaços nas pontas e em minúsculas. Vazio ou só espaços vira null (e-mail opcional). */
     public static String normalizarEmail(String email) {
-        return email == null ? null : email.strip().toLowerCase(Locale.ROOT);
+        if (email == null) {
+            return null;
+        }
+        String e = email.strip().toLowerCase(Locale.ROOT);
+        return e.isEmpty() ? null : e;
+    }
+
+    /** Usuário sem espaços nas pontas, minúsculo e sem acento ("Rafaél.Nunes " → "rafael.nunes"). */
+    public static String normalizarLogin(String login) {
+        return RegrasLogin.normalizar(login);
     }
 
     /** Nome sem espaços sobrando (null continua null). */
@@ -50,14 +66,21 @@ public final class RegrasUsuario {
         return nome == null ? null : nome.strip().replaceAll("\\s+", " ");
     }
 
+    /** Login de um usuário de teste do perfil dev (não pode ser dado a ninguém pelo cadastro). */
+    public static boolean loginReservado(String login) {
+        return UsuariosTesteDev.LOGINS.contains(normalizarLogin(login));
+    }
+
     /**
      * Confere os campos do formulário.
      *
-     * @param areaAtiva true se a área escolhida existe e está ativa (ignorado quando não há área)
-     * @return erros por campo (nome, email, perfil, areaId); vazio = ok
+     * @param loginAtual login gravado hoje (null ao criar). Manter o login atual é sempre aceito,
+     *                   mesmo que seja reservado (ex.: editar o nome do usuário de teste no dev).
+     * @param areaAtiva  true se a área escolhida existe e está ativa (ignorado quando não há área)
+     * @return erros por campo (nome, login, email, perfil, areaId); vazio = ok
      */
-    public static Map<String, String> validarCampos(String nome, String email, Perfil perfil,
-                                                    Long areaId, boolean areaAtiva) {
+    public static Map<String, String> validarCampos(String nome, String login, String loginAtual, String email,
+                                                    Perfil perfil, Long areaId, boolean areaAtiva) {
         Map<String, String> erros = new LinkedHashMap<>();
         String n = normalizarNome(nome);
         if (n == null || n.isEmpty()) {
@@ -66,13 +89,21 @@ public final class RegrasUsuario {
             erros.put("nome", NOME_LONGO);
         }
 
+        String l = normalizarLogin(login);
+        String erroLogin = RegrasLogin.validar(l);
+        if (erroLogin != null) {
+            erros.put("login", erroLogin);
+        } else if (!l.equals(loginAtual) && loginReservado(l)) {
+            erros.put("login", LOGIN_RESERVADO);
+        }
+
         String e = normalizarEmail(email);
-        if (e == null || e.isEmpty()) {
-            erros.put("email", EMAIL_OBRIGATORIO);
-        } else if (e.length() > EMAIL_MAXIMO) {
-            erros.put("email", EMAIL_LONGO);
-        } else if (!FORMATO_EMAIL.matcher(e).matches()) {
-            erros.put("email", EMAIL_INVALIDO);
+        if (e != null) {
+            if (e.length() > EMAIL_MAXIMO) {
+                erros.put("email", EMAIL_LONGO);
+            } else if (!FORMATO_EMAIL.matcher(e).matches()) {
+                erros.put("email", EMAIL_INVALIDO);
+            }
         }
 
         if (perfil == null) {
@@ -122,5 +153,16 @@ public final class RegrasUsuario {
     /** A área mudou? (ADMIN sem área conta como "nenhuma área"). */
     public static boolean mudouArea(Long areaAtual, Long areaNova) {
         return !Objects.equals(areaAtual, areaNova);
+    }
+
+    /**
+     * Mudou algo que muda o acesso da pessoa (login, perfil ou área)? Nesse caso as sessões dela são encerradas.
+     * O e-mail deixou de ser usado para entrar (V8), então mudar só o e-mail não derruba ninguém.
+     */
+    public static boolean mudouAcesso(String loginAtual, String loginNovo, Perfil perfilAtual, Perfil perfilNovo,
+                                      Long areaAtual, Long areaNova) {
+        return !Objects.equals(loginAtual, normalizarLogin(loginNovo))
+                || perfilAtual != perfilNovo
+                || mudouArea(areaAtual, areaNova);
     }
 }

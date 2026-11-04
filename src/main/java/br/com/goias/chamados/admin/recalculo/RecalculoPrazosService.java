@@ -79,7 +79,7 @@ public class RecalculoPrazosService {
         List<Mudanca> mudancas = calcular(chamados);
         if (mudancas.isEmpty()) {
             log.info("Recálculo de prazos ({}, área {}) por {}: nada mudou.", origem.getNome(),
-                    areaId == null ? "todas" : areaId, admin.getEmail());
+                    areaId == null ? "todas" : areaId, admin.getLogin());
             return 0;
         }
         Map<Long, Chamado> porId = chamados.stream().collect(Collectors.toMap(Chamado::getId, Function.identity()));
@@ -102,7 +102,7 @@ public class RecalculoPrazosService {
         }
         em.flush();
         log.info("Recálculo de prazos ({}, área {}) por {}: {} de {} chamados em andamento recalculados.",
-                origem.getNome(), areaId == null ? "todas" : areaId, admin.getEmail(), mudancas.size(), chamados.size());
+                origem.getNome(), areaId == null ? "todas" : areaId, admin.getLogin(), mudancas.size(), chamados.size());
         return mudancas.size();
     }
 

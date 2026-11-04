@@ -26,8 +26,8 @@ import org.springframework.security.web.session.HttpSessionEventPublisher;
  * "/" é público porque decide para onde levar: não logado → /abrir; GESTOR/ADMIN → /painel;
  * ATENDENTE → /atendimento.
  *
- * Login: mensagem única "E-mail ou senha incorretos." para qualquer falha
- * (senha errada, e-mail inexistente ou usuário inativo) — não revela se o e-mail existe.
+ * Login pelo campo "Usuário" (V8 — antes era o e-mail): mensagem única "Usuário ou senha incorretos."
+ * para qualquer falha (senha errada, usuário inexistente ou inativo) — não revela se o usuário existe.
  * Logout: só por POST com token CSRF (botão "Sair" do menu).
  * Troca de senha obrigatória: {@link TrocaSenhaObrigatoriaInterceptor}.
  *
@@ -68,7 +68,7 @@ public class SecurityConfig {
                 .formLogin(form -> form
                         .loginPage("/login")
                         .loginProcessingUrl("/login")
-                        .usernameParameter("email")
+                        .usernameParameter("usuario")
                         .passwordParameter("senha")
                         .defaultSuccessUrl("/", false)
                         .failureUrl("/login?erro")

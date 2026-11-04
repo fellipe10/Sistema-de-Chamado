@@ -19,7 +19,9 @@
                       th:text="${detalhe.ativo()} ? 'Ativo' : 'Inativo'">Ativo</span>
                 <span class="badge-pilula sla-vence" th:if="${detalhe.ativo() and detalhe.trocarSenha()}">Senha temporária</span>
                 <span class="selo selo-publico" th:if="${detalhe.ehVoce()}">Você</span>
-                <span th:text="${detalhe.email()}">rafael@goias.com.br</span>
+                <span class="login-usuario"><i class="bi bi-person" aria-hidden="true"></i>
+                    <span th:text="${detalhe.login()}">rafael.nunes</span></span>
+                <span th:if="${detalhe.email() != null}" th:text="${detalhe.email()}">rafael@goias.com.br</span>
             </p>
         </div>
     </div>
@@ -75,8 +77,23 @@
                 </div>
 
                 <div>
-                    <label class="form-label" for="email">E-mail (usado para entrar)</label>
-                    <input class="form-control" id="email" name="email" type="email" maxlength="150" required
+                    <label class="form-label" for="login">Usuário (usado para entrar)</label>
+                    <input class="form-control" id="login" name="login" type="text" maxlength="30" required
+                           placeholder="nome.sobrenome" autocomplete="off" autocapitalize="none" spellcheck="false"
+                           th:value="${form.login}" th:classappend="${erros['login'] != null} ? 'is-invalid'"
+                           th:attr="data-sugerir-login=${novo} ? @{/admin/usuarios/sugerir-login} : null,
+                                    aria-describedby='ajudaLogin'">
+                    <div class="erro-campo" th:text="${erros['login']}"></div>
+                    <p class="form-text mb-0" id="ajudaLogin">
+                        <th:block th:if="${novo}">Sugerido a partir do nome (pode editar).</th:block>
+                        Letras minúsculas sem acento, números, ponto e hífen; de 3 a 30 caracteres.
+                        <th:block th:unless="${novo}">Se mudar, a pessoa é desconectada e passa a entrar com o novo usuário.</th:block>
+                    </p>
+                </div>
+
+                <div>
+                    <label class="form-label" for="email">E-mail <span class="text-secondary fw-normal">(opcional, só para contato)</span></label>
+                    <input class="form-control" id="email" name="email" type="email" maxlength="150"
                            th:value="${form.email}" th:classappend="${erros['email'] != null} ? 'is-invalid'" autocomplete="off">
                     <div class="erro-campo" th:text="${erros['email']}"></div>
                 </div>
@@ -120,12 +137,12 @@
                     <span><i class="bi bi-exclamation-triangle" aria-hidden="true"></i>
                         <strong th:text="${detalhe.nome()} + ' tem ' + ${confirmarArea} + (${confirmarArea == 1} ? ' chamado em andamento.' : ' chamados em andamento.')">
                             Rafael tem 3 chamados em andamento.</strong>
-                        Eles continuam com essa pessoa na área antiga, mas ela deixa de vê-los na fila.
-                        O gestor da área antiga precisa transferi-los.</span>
+                        Ao mudar a área, eles <strong>voltam para a fila da área antiga</strong>, sem responsável,
+                        para outro atendente assumir.</span>
                     <a th:href="@{${linkFila}}" class="fw-semibold">Ver esses chamados na fila</a>
                     <label class="form-check d-flex gap-2 align-items-center mb-0">
                         <input class="form-check-input mt-0" type="checkbox" name="confirmarMudancaArea" value="true">
-                        <span>Entendi, quero mudar a área mesmo assim.</span>
+                        <span>Entendi, quero mudar a área e devolver esses chamados para a fila.</span>
                     </label>
                 </div>
 
@@ -157,8 +174,13 @@
                                 <i class="bi bi-person-x" aria-hidden="true"></i> Desativar usuário
                             </summary>
                             <form method="post" th:action="@{/admin/usuarios/{id}/desativar(id=${detalhe.id()})}">
-                                <p class="small mb-0">A pessoa é desconectada na hora e não consegue mais entrar.
-                                    Os chamados dela continuam com ela até alguém transferir.</p>
+                                <p class="small mb-0">A pessoa é desconectada na hora e não consegue mais entrar.</p>
+                                <label class="form-check d-flex gap-2 align-items-start my-1 small" th:if="${detalhe.emAndamento() > 0}">
+                                    <input class="form-check-input mt-1" type="checkbox" name="devolverChamados" value="true" checked>
+                                    <span>Devolver os chamados dele para a fila
+                                        (<span th:text="${detalhe.emAndamento()} + (${detalhe.emAndamento() == 1} ? ' chamado em andamento' : ' chamados em andamento')">2 chamados em andamento</span>).
+                                        Desmarcado: continuam com a pessoa até alguém transferir.</span>
+                                </label>
                                 <button type="submit" class="btn btn-escuro w-100">Confirmar desativação</button>
                             </form>
                         </details>

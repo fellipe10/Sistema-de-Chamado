@@ -26,6 +26,15 @@
                 Por segurança, é obrigatório trocar a senha no primeiro acesso.
             </div>
 
+            <!-- V8: lembra com qual usuário a pessoa entra (antes era o e-mail).
+                 O campo escondido ajuda o gerenciador de senhas do navegador a salvar usuário + senha nova. -->
+            <p class="mb-0 small text-secondary">
+                Você entra no sistema com o usuário
+                <strong class="text-body" th:text="${#authentication.principal.login}">rafael.nunes</strong>.
+            </p>
+            <input type="text" name="usuario" autocomplete="username" hidden readonly
+                   th:value="${#authentication.principal.login}">
+
             <div>
                 <label class="form-label" for="senhaAtual">Senha atual</label>
                 <div class="campo-senha">

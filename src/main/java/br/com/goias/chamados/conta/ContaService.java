@@ -57,7 +57,7 @@ public class ContaService {
         if (usuario.getArea() != null) {
             usuario.getArea().getNome();
         }
-        log.info("Usuário {} trocou a senha.", usuario.getEmail());
+        log.info("Usuário {} trocou a senha.", usuario.getLogin());
         return new Resultado(usuario, Map.of());
     }
 

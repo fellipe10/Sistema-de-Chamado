@@ -62,7 +62,7 @@ O sistema usa um usuário próprio no banco (`chamados`), **não** o `postgres`.
 3. **Conferir:** digite `\l` — o banco `chamados` aparece na lista com dono `chamados`. Saia com `\q`.
 
 **As tabelas NÃO precisam ser criadas à mão.** Na primeira vez que o sistema subir, ele cria tudo sozinho
-(Flyway, versões V1 a V7) e cadastra as áreas TI e Manutenção, as categorias, setores, locais, prazos, expediente,
+(Flyway, versões V1 a V8) e cadastra as áreas TI e Manutenção, as categorias, setores, locais, prazos, expediente,
 feriados de 2026–2027 e o administrador inicial.
 
 ---
@@ -122,7 +122,7 @@ java -jar chamados.jar --spring.profiles.active=prod
 ```
 **Conferir:** em uns 20 segundos aparecem as linhas
 - `The following 1 profile is active: "prod"`
-- `Successfully applied 7 migrations` (só na primeira vez)
+- `Successfully applied 8 migrations` (só na primeira vez)
 - `Started ChamadosApplication`
 - `[prod] Conferência de produção concluída.`
 
@@ -205,17 +205,22 @@ Isso libera só a rede interna (perfis Domínio e Particular), **não** a intern
 ## 9. Primeiro acesso do administrador
 
 1. Entre em `http://NOME-DO-SERVIDOR:8081/login` com:
-   - e-mail: `admin@chamados.local`
+   - usuário: `admin`
    - senha: `Goias@Chamados2026`
+   > Desde a V8 todo mundo entra pelo **usuário** no formato `nome.sobrenome` (não mais pelo e-mail).
+   > O admin inicial é o usuário `admin`, com o e-mail de contato `ti@goiasec.com.br`.
 2. O sistema **obriga a trocar a senha** na hora. Crie uma senha forte e guarde no KeePass.
    (Enquanto essa senha da instalação não for trocada, o log avisa: `[prod] O admin inicial ... ainda não trocou a senha`.)
 3. Recomendado em seguida, em **Configurações**:
-   1. **Usuários** → crie o **seu** usuário com perfil Administrador (com seu e-mail real). Passe a usar ele.
-      Entre com ele e **desative** o `admin@chamados.local` (o sistema não deixa ficar sem nenhum admin ativo).
+   1. **Usuários** → crie o **seu** usuário com perfil Administrador (ex.: `fellipe.silva`; o e-mail é opcional,
+      só para contato). Passe a usar ele.
+      Entre com ele e **desative** o usuário `admin` (o sistema não deixa ficar sem nenhum admin ativo).
       Tenha **sempre 2 administradores ativos**: se um esquecer a senha, o outro redefine.
    2. **Configurações gerais** → preencha os **ramais** da TI e da Manutenção (aparecem no rodapé das telas públicas).
    3. **Setores** e **Locais** → revise os cadastros iniciais (eram exemplos): renomeie, desative os que não servem, cadastre os que faltam.
-   4. **Usuários** → cadastre os atendentes e gestores. Cada um recebe uma senha temporária que aparece **uma vez** na tela.
+   4. **Usuários** → cadastre os atendentes e gestores. O sistema sugere o usuário a partir do nome
+      (ex.: "Rafael Nunes" → `rafael.nunes`; se já existir, `rafael.nunes-2`) e você pode editar.
+      Cada um recebe uma senha temporária que aparece **uma vez** na tela. Passe para a pessoa o **usuário** e a senha.
    5. **Feriados** → cadastre os pontos facultativos em que o clube para (Carnaval, Corpus Christi...). Todo fim de ano, cadastre os do ano seguinte (o sistema avisa quando faltar).
    6. **Expediente** e **Prazos (SLA)** → confira se batem com o combinado com cada área.
 
@@ -285,6 +290,11 @@ Use quando o banco estragar, o servidor for trocado, ou alguém apagar algo impo
    - se a versão nova trouxe mudança no banco: `Successfully applied N migrations`; se não: `Schema "public" is up to date`;
    - `Started ChamadosApplication`;
    - entre no sistema e abra um chamado de teste.
+
+> **Atualizando de uma versão anterior ao login por usuário (V8)?** Na primeira subida, cada pessoa ganha um usuário
+> tirado do e-mail (a parte antes do @, ex.: `rafael.nunes@goiasec.com.br` → `rafael.nunes`; repetidos ganham `-2`, `-3`)
+> e o admin inicial vira `admin`. Antes de liberar, abra **Configurações → Usuários**, confira/ajuste os usuários
+> gerados e avise a equipe com qual usuário cada um entra (a senha continua a mesma).
 
 **Deu errado? Voltar para a versão anterior:**
 1. `chamados-servico.exe stop`

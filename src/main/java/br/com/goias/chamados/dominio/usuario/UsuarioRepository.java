@@ -11,11 +11,14 @@ import java.util.Optional;
 
 public interface UsuarioRepository extends JpaRepository<Usuario, Long> {
 
-    /** Usado no login: já traz a área junto (evita LazyInitializationException). */
+    /** Usado no login (V8: pelo usuário, não mais pelo e-mail): já traz a área junto (evita LazyInitializationException). */
     @EntityGraph(attributePaths = "area")
-    Optional<Usuario> findByEmail(String email);
+    Optional<Usuario> findByLogin(String login);
 
-    boolean existsByEmail(String email);
+    boolean existsByLogin(String login);
+
+    /** E-mail é opcional, mas continua único quando preenchido (cadastro de usuários). */
+    Optional<Usuario> findByEmail(String email);
 
     List<Usuario> findByAreaIdAndAtivoTrueOrderByNomeAsc(Long areaId);
 

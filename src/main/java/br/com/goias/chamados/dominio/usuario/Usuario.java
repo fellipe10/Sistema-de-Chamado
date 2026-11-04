@@ -38,8 +38,15 @@ public class Usuario {
     @Column(nullable = false, length = 120)
     private String nome;
 
-    /** Sempre gravado em minúsculas (o banco tem CHECK para isso). */
-    @Column(nullable = false, length = 150)
+    /**
+     * Usuário para entrar no sistema (V8): nome.sobrenome, sempre minúsculo e único.
+     * Formato em {@link RegrasLogin}; o banco tem o mesmo CHECK.
+     */
+    @Column(nullable = false, length = RegrasLogin.MAXIMO)
+    private String login;
+
+    /** E-mail de contato, OPCIONAL (V8). Se preenchido: minúsculo e único. Vazio é gravado como null. */
+    @Column(length = 150)
     private String email;
 
     @Column(name = "senha_hash", nullable = false, length = 100)
@@ -65,9 +72,15 @@ public class Usuario {
 
     @PrePersist
     @PreUpdate
-    void normalizarEmail() {
+    void normalizar() {
+        if (login != null) {
+            login = RegrasLogin.normalizar(login);
+        }
         if (email != null) {
             email = email.trim().toLowerCase(Locale.ROOT);
+            if (email.isEmpty()) {
+                email = null;
+            }
         }
     }
 }

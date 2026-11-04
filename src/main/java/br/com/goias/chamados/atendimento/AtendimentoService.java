@@ -65,6 +65,7 @@ public class AtendimentoService {
     private final UsuarioRepository usuarioRepository;
     private final CalculadoraPrazo calculadoraPrazo;
     private final CalendariosExpediente calendarios;
+    private final DevolucaoFila devolucaoFila;
 
     // =================================================================
     // Tela
@@ -142,6 +143,7 @@ public class AtendimentoService {
     /**
      * Devolver para a fila: só o próprio responsável.
      * Volta para ABERTO se ainda não houve resposta ao solicitante; senão continua no mesmo status, sem responsável.
+     * A regra fica em {@link DevolucaoFila} (também usada pelo admin).
      */
     @Transactional
     public String devolver(Long chamadoId, Long versao, UsuarioLogado usuario) {
@@ -154,17 +156,8 @@ public class AtendimentoService {
 
         LocalDateTime agora = LocalDateTime.now();
         Usuario eu = usuarioRepository.getReferenceById(usuario.getId());
-        chamado.setAtendente(null);
-        gravar(chamado, eu, TipoInteracao.ATRIBUICAO, usuario.getNome() + " devolveu o chamado para a fila.", null, null, agora);
-
-        boolean jaRespondeu = interacaoRepository.existsByChamadoIdAndTipo(chamado.getId(), TipoInteracao.RESPOSTA_SOLICITANTE);
-        StatusChamado atual = chamado.getStatus();
-        if (!jaRespondeu && (atual == StatusChamado.EM_ATENDIMENTO || atual == StatusChamado.AGUARDANDO)) {
-            if (atual == StatusChamado.AGUARDANDO) {
-                PausaSla.encerrar(chamado, agora, calculadoraPrazo);
-            }
-            mudar(chamado, eu, StatusChamado.ABERTO, null, agora);
-        }
+        // Mesma regra usada pelo admin ao mudar a área ou desativar alguém (ver DevolucaoFila)
+        devolucaoFila.devolver(chamado, eu, usuario.getNome() + " devolveu o chamado para a fila.", agora);
         return "Chamado devolvido para a fila.";
     }
 

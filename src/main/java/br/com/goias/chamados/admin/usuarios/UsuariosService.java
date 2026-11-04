@@ -2,11 +2,13 @@ package br.com.goias.chamados.admin.usuarios;
 
 import br.com.goias.chamados.admin.AcaoAdminRecusadaException;
 import br.com.goias.chamados.admin.RegistroNaoEncontradoException;
+import br.com.goias.chamados.atendimento.DevolucaoFila;
 import br.com.goias.chamados.config.SessoesAtivas;
 import br.com.goias.chamados.dominio.area.Area;
 import br.com.goias.chamados.dominio.area.AreaRepository;
 import br.com.goias.chamados.dominio.chamado.StatusChamado;
 import br.com.goias.chamados.dominio.usuario.Perfil;
+import br.com.goias.chamados.dominio.usuario.RegrasLogin;
 import br.com.goias.chamados.dominio.usuario.Usuario;
 import br.com.goias.chamados.dominio.usuario.UsuarioRepository;
 import br.com.goias.chamados.login.UsuarioLogado;
@@ -26,7 +28,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 
 /**
@@ -34,9 +35,13 @@ import java.util.Optional;
  *
  * - Criar: gera senha temporária (mostrada uma vez) e trocar_senha = true.
  * - Redefinir senha: nova senha temporária, trocar_senha = true e derruba as sessões abertas.
- * - Desativar: derruba as sessões abertas; os chamados continuam com a pessoa.
- * - Mudar e-mail, perfil ou área de outra pessoa também derruba as sessões dela
- *   (assim a mudança vale na hora, em vez de só no próximo login).
+ * - Desativar: derruba as sessões abertas. Com "Devolver os chamados dele para a fila" (marcado por padrão),
+ *   os chamados em andamento voltam para a fila; sem marcar, continuam com a pessoa.
+ * - Mudar a área de quem tem chamados em andamento (depois de confirmar): os chamados voltam para a fila
+ *   da área antiga, com ATRIBUICAO "Devolvido à fila por mudança de área do responsável." ({@link DevolucaoFila}).
+ * - Mudar o usuário (login), o perfil ou a área de outra pessoa também derruba as sessões dela
+ *   (assim a mudança vale na hora, em vez de só no próximo login). Mudar só o e-mail não derruba (V8).
+ * - Usuário (login) obrigatório e único; e-mail opcional, único quando preenchido.
  * - Proteções: ver {@link RegrasUsuario}.
  */
 @Slf4j
@@ -51,6 +56,7 @@ public class UsuariosService {
     private final AreaRepository areaRepository;
     private final PasswordEncoder passwordEncoder;
     private final SessoesAtivas sessoesAtivas;
+    private final DevolucaoFila devolucaoFila;
     private final EntityManager em;
 
     // =================================================================
@@ -64,7 +70,7 @@ public class UsuariosService {
         }
     }
 
-    public record LinhaUsuario(Long id, String nome, String email, Perfil perfil, String areaNome,
+    public record LinhaUsuario(Long id, String nome, String login, String email, Perfil perfil, String areaNome,
                                boolean ativo, boolean trocarSenha, long emAndamento, boolean ehVoce) {
 
         public String iniciais() {
@@ -84,7 +90,7 @@ public class UsuariosService {
     }
 
     /** Dados do usuário que está sendo editado. */
-    public record Detalhe(Long id, String nome, String email, Perfil perfil, Long areaId, String areaNome,
+    public record Detalhe(Long id, String nome, String login, String email, Perfil perfil, Long areaId, String areaNome,
                           boolean ativo, boolean trocarSenha, long emAndamento, int sessoesAbertas, boolean ehVoce) {
     }
 
@@ -105,8 +111,13 @@ public class UsuariosService {
         }
     }
 
-    /** Resultado de desativar/reativar. */
-    public record ResultadoSituacao(String erro, String nome, long emAndamento, Long areaId) {
+    /**
+     * Resultado de desativar/reativar.
+     *
+     * @param emAndamento chamados em andamento que CONTINUAM com a pessoa (não devolvidos)
+     * @param devolvidos  chamados devolvidos para a fila ao desativar
+     */
+    public record ResultadoSituacao(String erro, String nome, long emAndamento, int devolvidos, Long areaId) {
     }
 
     // =================================================================
@@ -118,7 +129,8 @@ public class UsuariosService {
         StringBuilder jpql = new StringBuilder("select u from Usuario u left join fetch u.area a where 1 = 1");
         Map<String, Object> parametros = new HashMap<>();
         if (f.busca() != null && !f.busca().isBlank()) {
-            jpql.append(" and (lower(u.nome) like :busca escape '\\' or lower(u.email) like :busca escape '\\')");
+            jpql.append(" and (lower(u.nome) like :busca escape '\\' or u.login like :busca escape '\\'"
+                    + " or lower(u.email) like :busca escape '\\')");
             parametros.put("busca", contem(f.busca().strip().toLowerCase(Locale.ROOT)));
         }
         if ("ativos".equals(f.situacao())) {
@@ -141,7 +153,7 @@ public class UsuariosService {
 
         Map<Long, Long> emAndamento = contarEmAndamentoPorAtendente();
         return usuarios.stream()
-                .map(u -> new LinhaUsuario(u.getId(), u.getNome(), u.getEmail(), u.getPerfil(),
+                .map(u -> new LinhaUsuario(u.getId(), u.getNome(), u.getLogin(), u.getEmail(), u.getPerfil(),
                         u.getArea() == null ? null : u.getArea().getNome(),
                         u.isAtivo(), u.isTrocarSenha(), emAndamento.getOrDefault(u.getId(), 0L),
                         u.getId().equals(admin.getId())))
@@ -162,12 +174,27 @@ public class UsuariosService {
 
     @Transactional(readOnly = true)
     public Optional<Detalhe> detalhe(Long id, UsuarioLogado admin) {
-        return usuarioRepository.findById(id).map(u -> new Detalhe(u.getId(), u.getNome(), u.getEmail(),
+        return usuarioRepository.findById(id).map(u -> new Detalhe(u.getId(), u.getNome(), u.getLogin(), u.getEmail(),
                 u.getPerfil(),
                 u.getArea() == null ? null : u.getArea().getId(),
                 u.getArea() == null ? null : u.getArea().getNome(),
                 u.isAtivo(), u.isTrocarSenha(), contarEmAndamento(u.getId()),
                 sessoesAtivas.contar(u.getId()), u.getId().equals(admin.getId())));
+    }
+
+    // =================================================================
+    // Sugestão de usuário (login) a partir do nome
+    // =================================================================
+
+    /**
+     * Sugestão de login ainda livre: "rafael.nunes", "rafael.nunes-2"... (logins de teste contam como ocupados).
+     *
+     * @param idAtual usuário que está sendo editado (o login dele não conta como ocupado); null ao criar
+     */
+    @Transactional(readOnly = true)
+    public String sugerirLogin(String nome, Long idAtual) {
+        return RegrasLogin.sugerirDisponivel(nome, login -> RegrasUsuario.loginReservado(login)
+                || usuarioRepository.findByLogin(login).filter(u -> !u.getId().equals(idAtual)).isPresent());
     }
 
     // =================================================================
@@ -187,7 +214,7 @@ public class UsuariosService {
         usuario.setTrocarSenha(true);
         usuario.setSenhaHash(passwordEncoder.encode(senha));
         usuarioRepository.saveAndFlush(usuario);
-        log.info("Usuário criado: {} ({}).", usuario.getEmail(), usuario.getPerfil());
+        log.info("Usuário criado: {} ({}).", usuario.getLogin(), usuario.getPerfil());
         return new Resultado(usuario.getId(), Map.of(), senha, 0, null);
     }
 
@@ -214,33 +241,45 @@ public class UsuariosService {
 
         Long areaAtual = usuario.getArea() == null ? null : usuario.getArea().getId();
         Long areaNova = RegrasUsuario.precisaDeArea(form.getPerfil()) ? form.getAreaId() : null;
-        long emAndamento = 0;
+        String areaAntigaNome = usuario.getArea() == null ? null : usuario.getArea().getNome();
+        int devolvidos = 0;
         if (RegrasUsuario.mudouArea(areaAtual, areaNova)) {
-            emAndamento = contarEmAndamento(usuario.getId());
+            long emAndamento = contarEmAndamento(usuario.getId());
             if (emAndamento > 0 && !form.isConfirmarMudancaArea()) {
                 return new Resultado(usuario.getId(), Map.of(), null, emAndamento, null);
             }
+            if (emAndamento > 0) {
+                // Ajuste pós-MVP: sem isso os chamados ficariam "presos" com alguém que não vê mais a área antiga
+                devolvidos = devolucaoFila.devolverTodosDe(usuario.getId(),
+                        usuarioRepository.getReferenceById(admin.getId()), DevolucaoFila.TEXTO_MUDANCA_AREA);
+            }
         }
 
-        boolean mudouAcesso = !Objects.equals(usuario.getEmail(), RegrasUsuario.normalizarEmail(form.getEmail()))
-                || usuario.getPerfil() != form.getPerfil()
-                || RegrasUsuario.mudouArea(areaAtual, areaNova);
+        boolean mudouAcesso = RegrasUsuario.mudouAcesso(usuario.getLogin(), form.getLogin(),
+                usuario.getPerfil(), form.getPerfil(), areaAtual, areaNova);
+        boolean mudouLogin = !usuario.getLogin().equals(RegrasUsuario.normalizarLogin(form.getLogin()));
         preencher(usuario, form);
         usuarioRepository.saveAndFlush(usuario);
 
         String aviso = null;
         if (mudouAcesso && !ehOProprio) {
             depoisDoCommit(() -> sessoesAtivas.encerrar(id));
-            aviso = "Se a pessoa estava usando o sistema, ela precisa entrar de novo para a mudança valer.";
+            aviso = mudouLogin
+                    ? "A partir de agora a pessoa entra com o usuário \"" + usuario.getLogin() + "\". "
+                      + "Se ela estava usando o sistema, foi desconectada."
+                    : "Se a pessoa estava usando o sistema, ela precisa entrar de novo para a mudança valer.";
         } else if (ehOProprio) {
-            aviso = "O seu nome no menu é atualizado no próximo login.";
+            aviso = mudouLogin
+                    ? "Da próxima vez, entre com o usuário \"" + usuario.getLogin() + "\"."
+                    : "O seu nome no menu é atualizado no próximo login.";
         }
-        if (emAndamento > 0) {
-            aviso = emAndamento + (emAndamento == 1 ? " chamado em andamento continua" : " chamados em andamento continuam")
-                    + " com " + primeiroNome(usuario.getNome()) + " na área antiga. Peça ao gestor dessa área para transferir.";
+        if (devolvidos > 0) {
+            aviso = devolvidos + (devolvidos == 1 ? " chamado em andamento voltou" : " chamados em andamento voltaram")
+                    + " para a fila" + (areaAntigaNome == null ? "" : " da área " + areaAntigaNome)
+                    + ", sem responsável. " + (aviso == null ? "" : aviso);
         }
-        log.info("Usuário {} alterado por {}.", usuario.getEmail(), admin.getEmail());
-        return new Resultado(usuario.getId(), Map.of(), null, 0, aviso);
+        log.info("Usuário {} alterado por {}.", usuario.getLogin(), admin.getLogin());
+        return new Resultado(usuario.getId(), Map.of(), null, 0, aviso == null ? null : aviso.strip());
     }
 
     // =================================================================
@@ -259,7 +298,7 @@ public class UsuariosService {
         usuario.setTrocarSenha(true);
         usuarioRepository.saveAndFlush(usuario);
         depoisDoCommit(() -> sessoesAtivas.encerrar(id));
-        log.info("Senha do usuário {} redefinida por {}.", usuario.getEmail(), admin.getEmail());
+        log.info("Senha do usuário {} redefinida por {}.", usuario.getLogin(), admin.getLogin());
         return senha;
     }
 
@@ -267,32 +306,42 @@ public class UsuariosService {
     // Desativar / reativar
     // =================================================================
 
+    /**
+     * Desativa ou reativa.
+     *
+     * @param devolverChamados só ao desativar: devolver para a fila os chamados em andamento da pessoa
+     */
     @Transactional
-    public ResultadoSituacao alterarSituacao(Long id, boolean ativar, UsuarioLogado admin) {
+    public ResultadoSituacao alterarSituacao(Long id, boolean ativar, boolean devolverChamados, UsuarioLogado admin) {
         Usuario usuario = usuarioRepository.findById(id)
                 .orElseThrow(() -> new RegistroNaoEncontradoException("Usuário", id));
         if (usuario.isAtivo() == ativar) {
-            return new ResultadoSituacao(null, usuario.getNome(), 0, null);
+            return new ResultadoSituacao(null, usuario.getNome(), 0, 0, null);
         }
         if (ativar && usuario.getArea() != null && !usuario.getArea().isAtivo()
                 && RegrasUsuario.precisaDeArea(usuario.getPerfil())) {
             return new ResultadoSituacao("A área de " + primeiroNome(usuario.getNome())
-                    + " está inativa. Mude a área antes de reativar.", usuario.getNome(), 0, null);
+                    + " está inativa. Mude a área antes de reativar.", usuario.getNome(), 0, 0, null);
         }
         String protecao = RegrasUsuario.protecao(usuario.getId().equals(admin.getId()), usuario.getPerfil(),
                 usuario.isAtivo(), usuario.getPerfil(), ativar, outrosAdminsAtivos(usuario.getId()));
         if (protecao != null) {
-            return new ResultadoSituacao(protecao, usuario.getNome(), 0, null);
+            return new ResultadoSituacao(protecao, usuario.getNome(), 0, 0, null);
         }
         usuario.setAtivo(ativar);
         usuarioRepository.saveAndFlush(usuario);
         long emAndamento = 0;
+        int devolvidos = 0;
         if (!ativar) {
+            if (devolverChamados) {
+                devolvidos = devolucaoFila.devolverTodosDe(usuario.getId(),
+                        usuarioRepository.getReferenceById(admin.getId()), DevolucaoFila.TEXTO_DESATIVACAO);
+            }
             emAndamento = contarEmAndamento(usuario.getId());
             depoisDoCommit(() -> sessoesAtivas.encerrar(id));
         }
-        log.info("Usuário {} {} por {}.", usuario.getEmail(), ativar ? "reativado" : "desativado", admin.getEmail());
-        return new ResultadoSituacao(null, usuario.getNome(), emAndamento,
+        log.info("Usuário {} {} por {}.", usuario.getLogin(), ativar ? "reativado" : "desativado", admin.getLogin());
+        return new ResultadoSituacao(null, usuario.getNome(), emAndamento, devolvidos,
                 usuario.getArea() == null ? null : usuario.getArea().getId());
     }
 
@@ -309,10 +358,27 @@ public class UsuariosService {
                     .map(u -> u.getArea() != null && u.getArea().getId().equals(form.getAreaId()))
                     .orElse(false);
         }
+        String loginAtual = idAtual == null ? null
+                : usuarioRepository.findById(idAtual).map(Usuario::getLogin).orElse(null);
         Map<String, String> erros = new LinkedHashMap<>(RegrasUsuario.validarCampos(
-                form.getNome(), form.getEmail(), form.getPerfil(), form.getAreaId(), areaAtiva));
-        if (!erros.containsKey("email")) {
-            String email = RegrasUsuario.normalizarEmail(form.getEmail());
+                form.getNome(), form.getLogin(), loginAtual, form.getEmail(), form.getPerfil(), form.getAreaId(), areaAtiva));
+
+        String login = RegrasUsuario.normalizarLogin(form.getLogin());
+        if (login.isEmpty() && !erros.containsKey("nome")) {
+            // Sem JavaScript (ou campo apagado): já devolve o formulário com uma sugestão para o admin conferir
+            String sugestao = sugerirLogin(form.getNome(), idAtual);
+            if (RegrasLogin.valido(sugestao)) {
+                form.setLogin(sugestao);
+                erros.put("login", RegrasUsuario.LOGIN_SUGERIDO);
+            }
+        } else if (!erros.containsKey("login")) {
+            usuarioRepository.findByLogin(login)
+                    .filter(outro -> !outro.getId().equals(idAtual))
+                    .ifPresent(outro -> erros.put("login", RegrasUsuario.LOGIN_REPETIDO));
+        }
+
+        String email = RegrasUsuario.normalizarEmail(form.getEmail());
+        if (email != null && !erros.containsKey("email")) {
             usuarioRepository.findByEmail(email)
                     .filter(outro -> !outro.getId().equals(idAtual))
                     .ifPresent(outro -> erros.put("email", RegrasUsuario.EMAIL_REPETIDO));
@@ -322,6 +388,7 @@ public class UsuariosService {
 
     private void preencher(Usuario usuario, UsuarioForm form) {
         usuario.setNome(RegrasUsuario.normalizarNome(form.getNome()));
+        usuario.setLogin(RegrasUsuario.normalizarLogin(form.getLogin()));
         usuario.setEmail(RegrasUsuario.normalizarEmail(form.getEmail()));
         usuario.setPerfil(form.getPerfil());
         usuario.setArea(RegrasUsuario.precisaDeArea(form.getPerfil())

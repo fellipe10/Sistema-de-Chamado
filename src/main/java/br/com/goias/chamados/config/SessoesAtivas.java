@@ -10,7 +10,7 @@ import org.springframework.stereotype.Component;
 /**
  * Encerra as sessões abertas de um usuário (Etapa 5).
  *
- * Usado ao desativar o usuário, redefinir a senha dele ou mudar e-mail/perfil/área.
+ * Usado ao desativar o usuário, redefinir a senha dele ou mudar usuário (login)/perfil/área.
  * A sessão é marcada como "expirada" no {@link SessionRegistry}; no próximo clique
  * o Spring Security desloga a pessoa e leva para /login?encerrada (ver {@link SecurityConfig}).
  *
