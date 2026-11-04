@@ -19,6 +19,11 @@
                 <span th:text="${pg.totalItens() == 1} ? 'chamado' : 'chamados'">chamados</span>
             </p>
         </div>
+        <nav class="alternar-visao" aria-label="Forma de ver a fila">
+            <a class="ativa" aria-current="page" th:href="@{/atendimento(visao='lista', filtro=${tela.aba().parametro})}">
+                <i class="bi bi-list-ul" aria-hidden="true"></i> Lista</a>
+            <a th:href="@{${tela.urlKanban()}}"><i class="bi bi-kanban" aria-hidden="true"></i> Kanban</a>
+        </nav>
     </div>
 
     <!-- Abas com contador -->

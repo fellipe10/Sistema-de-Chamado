@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="pt-BR"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/interno}">
+<head>
+    <title th:text="${tela.titulo()}">Fila de chamados</title>
+</head>
+<body>
+<!--
+    Fila em Kanban — SÓ VISUALIZAÇÃO (sem arrastar e soltar). Clicar no card abre o chamado.
+    O quadro (fragmento "quadro") é atualizado sozinho a cada ${intervaloSegundos} s pelo /js/kanban.js,
+    buscando GET /atendimento/quadro com os mesmos filtros. Sem JavaScript, a página funciona normalmente
+    (só não se atualiza sozinha).
+-->
+<th:block layout:fragment="conteudo" th:with="f=${tela.filtros()}">
+
+    <div class="cabecalho-pagina">
+        <div>
+            <h1 th:text="${tela.titulo()}">Fila de chamados</h1>
+            <p>
+                <span th:text="${tela.areaDescricao()}">TI</span> ·
+                <span>no quadro:</span>
+                <strong class="tabular" data-total-quadro th:text="${tela.totalNoQuadro()}">0</strong>
+                <span>chamados</span>
+            </p>
+        </div>
+        <nav class="alternar-visao" aria-label="Forma de ver a fila">
+            <a th:href="@{${tela.urlLista()}}"><i class="bi bi-list-ul" aria-hidden="true"></i> Lista</a>
+            <a class="ativa" aria-current="page" th:href="@{${tela.url('/atendimento', 'kanban')}}">
+                <i class="bi bi-kanban" aria-hidden="true"></i> Kanban</a>
+        </nav>
+    </div>
+
+    <!-- Filtro por responsável (atalho da administração) -->
+    <div class="filtro-responsavel" th:if="${f.atendenteId() != null}">
+        <i class="bi bi-person-badge" aria-hidden="true"></i>
+        <span>Mostrando só os chamados de <strong th:text="${f.atendenteNome()}">Rafael Nunes</strong></span>
+        <a th:href="@{${tela.urlLimpar()}}" class="fw-semibold">Ver todos</a>
+    </div>
+
+    <!-- Busca e filtros (os mesmos da Lista, sem as abas: as colunas já são os status) -->
+    <section class="card">
+        <form class="card-body filtros-fila filtros-kanban" method="get" th:action="@{/atendimento}" role="search">
+            <input type="hidden" name="visao" value="kanban">
+            <input type="hidden" name="atendente" th:if="${f.atendenteId() != null}" th:value="${f.atendenteId()}">
+            <div class="campo-busca">
+                <label class="form-label" for="busca">Buscar</label>
+                <div class="input-icone">
+                    <i class="bi bi-search" aria-hidden="true"></i>
+                    <input class="form-control" id="busca" name="busca" type="search" maxlength="100"
+                           th:value="${f.busca()}" placeholder="Código, título ou nome do solicitante">
+                </div>
+            </div>
+            <div>
+                <label class="form-label" for="prioridade">Prioridade</label>
+                <select class="form-select" id="prioridade" name="prioridade">
+                    <option value="">Todas</option>
+                    <option th:each="p : ${tela.prioridades()}" th:value="${p.name()}" th:text="${p.descricao}"
+                            th:selected="${f.prioridade() == p}">Alta</option>
+                </select>
+            </div>
+            <div>
+                <label class="form-label" for="categoria">Categoria</label>
+                <select class="form-select" id="categoria" name="categoria">
+                    <option value="">Todas</option>
+                    <option th:each="c : ${tela.categorias()}" th:value="${c.id()}"
+                            th:text="${tela.mostrarFiltroArea() and f.areaId() == null} ? ${c.areaNome() + ' · ' + c.nome()} : ${c.nome()}"
+                            th:selected="${f.categoriaId() == c.id()}">Impressora e scanner</option>
+                </select>
+            </div>
+            <div th:if="${tela.mostrarFiltroArea()}">
+                <label class="form-label" for="area">Área</label>
+                <select class="form-select" id="area" name="area">
+                    <option value="">Todas</option>
+                    <option th:each="a : ${tela.areas()}" th:value="${a.id()}" th:text="${a.nome()}"
+                            th:selected="${f.areaId() == a.id()}">TI</option>
+                </select>
+            </div>
+            <div class="campo-so-meus">
+                <label class="form-check d-flex gap-2 align-items-center mb-0">
+                    <input class="form-check-input mt-0" type="checkbox" name="meus" value="true" th:checked="${tela.soMeus()}">
+                    <span>Só os meus</span>
+                </label>
+            </div>
+            <div class="botoes-filtro">
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-funnel" aria-hidden="true"></i> Filtrar
+                </button>
+                <a class="btn btn-secundario" th:href="@{${tela.urlLimpar()}}" th:if="${tela.algumFiltro()}">Limpar</a>
+            </div>
+        </form>
+    </section>
+
+    <!-- Situação da atualização automática -->
+    <div class="kanban-status" id="kanbanStatus"
+         th:attr="data-url-quadro=@{${tela.urlQuadro()}}, data-intervalo=${intervaloSegundos}">
+        <span class="kanban-atualizado">
+            <i class="bi bi-arrow-repeat" aria-hidden="true"></i>
+            Atualizado às <strong class="tabular" data-hora-atualizacao th:text="${tela.horaAtualizacao()}">14:32:10</strong>
+            <span class="kanban-auto" hidden>· atualiza sozinho a cada <span th:text="${intervaloSegundos}">30</span> s</span>
+        </span>
+        <span class="kanban-erro" role="status" aria-live="polite" data-erro-conexao></span>
+        <a class="fw-semibold" data-atualizar-agora th:href="@{${tela.url('/atendimento', 'kanban')}}">
+            Atualizar agora</a>
+    </div>
+
+    <!-- Quadro: este bloco é o que a atualização automática troca -->
+    <div class="kanban" id="quadro" th:fragment="quadro"
+         th:attr="data-total-fila=${totalFila ?: 0}, data-hora=${tela.horaAtualizacao()}, data-total-quadro=${tela.totalNoQuadro()}">
+        <section class="kanban-coluna" th:each="col : ${tela.colunas()}"
+                 th:classappend="'coluna-' + ${col.coluna().chave}"
+                 th:attr="data-coluna=${col.coluna().chave}, aria-labelledby='titulo-' + ${col.coluna().chave}">
+            <header class="kanban-cabecalho">
+                <i class="bi" th:classappend="${col.coluna().icone}" aria-hidden="true"></i>
+                <h2 th:id="'titulo-' + ${col.coluna().chave}" th:text="${col.coluna().rotulo}">Aberto</h2>
+                <span class="contador tabular" th:text="${col.total()}"
+                      th:attr="aria-label=${col.total()} + (${col.total() == 1} ? ' chamado' : ' chamados')">0</span>
+            </header>
+            <p class="kanban-dica" th:if="${col.coluna().name() == 'RESOLVIDO'}">Últimos 7 dias</p>
+
+            <ul class="kanban-cards" th:unless="${#lists.isEmpty(col.cards())}">
+                <li th:each="card : ${col.cards()}" th:with="l=${card.linha()}" th:attr="data-id=${l.id()}">
+                    <a class="kanban-card" th:href="@{/atendimento/{id}(id=${l.id()})}"
+                       th:classappend="'borda-' + ${l.classePrioridade()}">
+                        <span class="linha-topo">
+                            <span class="protocolo" th:text="${l.protocolo()}">TI-2026-7K3F</span>
+                            <span class="badge-pilula com-ponto" th:classappend="${l.badgeSla().classe()}"
+                                  th:title="${l.badgeSla().dica()}" th:text="${l.badgeSla().texto()}">No prazo</span>
+                        </span>
+                        <span class="titulo" th:text="${l.titulo()}">Impressora do financeiro não imprime</span>
+                        <span class="linha-badges">
+                            <span class="badge-pilula" th:classappend="${l.classePrioridade()}"
+                                  th:text="${l.prioridade().descricao}">Alta</span>
+                            <span class="badge-pilula status-reaberto" th:if="${card.reaberto()}">Reaberto</span>
+                            <span class="badge-pilula" th:if="${card.finalizado()}" th:classappend="${l.classeStatus()}"
+                                  th:text="${l.status().descricao}">Fechado</span>
+                            <span class="badge-pilula badge-motivo status-aguardando" th:if="${card.motivo() != null}"
+                                  th:text="${card.motivo().descricao}">Aguardando o solicitante</span>
+                        </span>
+                        <span class="rodape-card">
+                            <span><i class="bi bi-tag" aria-hidden="true"></i>
+                                <span th:text="${l.categoriaNome()}">Impressora</span></span>
+                            <span th:classappend="${l.atendentePrimeiroNome() == null} ? 'sem-responsavel'">
+                                <i class="bi bi-person" aria-hidden="true"></i>
+                                <span th:text="${l.atendentePrimeiroNome() ?: 'Sem responsável'}">Sem responsável</span></span>
+                        </span>
+                    </a>
+                </li>
+            </ul>
+
+            <p class="kanban-vazio" th:if="${col.total() == 0}">Nenhum chamado</p>
+
+            <a class="kanban-mais" th:if="${col.restantes() > 0}" th:href="@{${col.urlVerTodos()}}">
+                <span th:text="'+ ' + ${col.restantes()} + (${col.restantes() == 1} ? ' chamado' : ' chamados')">+ 12 chamados</span>
+                · ver todos na lista
+            </a>
+        </section>
+    </div>
+</th:block>
+
+<th:block layout:fragment="scripts">
+    <script th:src="@{/js/kanban.js}"></script>
+</th:block>
+</body>
+</html>

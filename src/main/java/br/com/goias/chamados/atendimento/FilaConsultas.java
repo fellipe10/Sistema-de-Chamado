@@ -15,7 +15,9 @@ import jakarta.persistence.criteria.Root;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Locale;
@@ -27,6 +29,9 @@ import java.util.Locale;
  * porque o prazo deles é o mais antigo), depois prioridade (Crítica → Baixa), depois abertura.
  * Chamados sem prazo vão para o fim.
  * Na aba "Resolvidos e fechados" (histórico) a ordem é a resolução mais recente primeiro.
+ *
+ * Kanban: as colunas usam os MESMOS filtros (área, busca, prioridade, categoria, responsável),
+ * trocando a aba por uma lista de status ({@link CriteriosColuna}).
  */
 @Repository
 @RequiredArgsConstructor
@@ -48,6 +53,52 @@ class FilaConsultas {
         Criterios naAba(AbaFila outra) {
             return new Criterios(areaId, usuarioId, outra, busca, prioridade, categoriaId, atendenteId);
         }
+    }
+
+    /**
+     * Critérios de uma coluna do Kanban.
+     *
+     * @param status          status da coluna
+     * @param resolvidosDesde só chamados resolvidos a partir desta data (null = sem corte)
+     * @param ordemHistorico  true = resolução mais recente primeiro (coluna Resolvido)
+     */
+    record CriteriosColuna(Long areaId, String busca, Prioridade prioridade, Long categoriaId, Long atendenteId,
+                           Collection<StatusChamado> status, LocalDateTime resolvidosDesde, boolean ordemHistorico) {
+    }
+
+    List<Chamado> listarColuna(CriteriosColuna c, int quantidade) {
+        CriteriaBuilder cb = em.getCriteriaBuilder();
+        CriteriaQuery<Chamado> query = cb.createQuery(Chamado.class);
+        Root<Chamado> chamado = query.from(Chamado.class);
+        chamado.fetch("area");
+        chamado.fetch("categoria");
+        chamado.fetch("setor");
+        chamado.fetch("atendente", JoinType.LEFT);
+
+        query.select(chamado)
+                .where(predicadosColuna(cb, chamado, c))
+                .orderBy(ordem(cb, chamado, c.ordemHistorico() ? AbaFila.HISTORICO : AbaFila.ANDAMENTO));
+        return em.createQuery(query)
+                .setMaxResults(quantidade)
+                .getResultList();
+    }
+
+    long contarColuna(CriteriosColuna c) {
+        CriteriaBuilder cb = em.getCriteriaBuilder();
+        CriteriaQuery<Long> query = cb.createQuery(Long.class);
+        Root<Chamado> chamado = query.from(Chamado.class);
+        query.select(cb.count(chamado)).where(predicadosColuna(cb, chamado, c));
+        return em.createQuery(query).getSingleResult();
+    }
+
+    private Predicate[] predicadosColuna(CriteriaBuilder cb, Root<Chamado> chamado, CriteriosColuna c) {
+        List<Predicate> lista = new ArrayList<>();
+        lista.add(chamado.get("status").in(c.status()));
+        if (c.resolvidosDesde() != null) {
+            lista.add(cb.greaterThanOrEqualTo(chamado.get("dataResolucao"), c.resolvidosDesde()));
+        }
+        filtrosComuns(cb, chamado, lista, c.areaId(), c.busca(), c.prioridade(), c.categoriaId(), c.atendenteId());
+        return lista.toArray(Predicate[]::new);
     }
 
     List<Chamado> listar(Criterios criterios, int primeiro, int quantidade) {
@@ -95,10 +146,6 @@ class FilaConsultas {
         List<Predicate> lista = new ArrayList<>();
         Expression<StatusChamado> status = chamado.get("status");
 
-        if (c.areaId() != null) {
-            lista.add(cb.equal(chamado.get("area").get("id"), c.areaId()));
-        }
-
         switch (c.aba()) {
             case NOVOS -> {
                 lista.add(cb.equal(status, StatusChamado.ABERTO));
@@ -115,8 +162,18 @@ class FilaConsultas {
             case HISTORICO -> lista.add(status.in(FINALIZADOS));
         }
 
-        if (c.busca() != null && !c.busca().isBlank()) {
-            String termo = c.busca().strip().toLowerCase(Locale.ROOT);
+        filtrosComuns(cb, chamado, lista, c.areaId(), c.busca(), c.prioridade(), c.categoriaId(), c.atendenteId());
+        return lista.toArray(Predicate[]::new);
+    }
+
+    /** Filtros iguais na Lista e no Kanban: área, busca, prioridade, categoria e responsável. */
+    private void filtrosComuns(CriteriaBuilder cb, Root<Chamado> chamado, List<Predicate> lista, Long areaId,
+                               String busca, Prioridade prioridade, Long categoriaId, Long atendenteId) {
+        if (areaId != null) {
+            lista.add(cb.equal(chamado.get("area").get("id"), areaId));
+        }
+        if (busca != null && !busca.isBlank()) {
+            String termo = busca.strip().toLowerCase(Locale.ROOT);
             String termoCodigo = termo.replace("-", "").replace("–", "").replaceAll("\\s+", "");
             Expression<String> codigoSemHifen = cb.lower(cb.function("replace", String.class,
                     chamado.get("protocolo"), cb.literal("-"), cb.literal("")));
@@ -128,16 +185,15 @@ class FilaConsultas {
             ou.add(cb.like(cb.lower(chamado.get("solicitanteNome")), contem(termo), '\\'));
             lista.add(cb.or(ou.toArray(Predicate[]::new)));
         }
-        if (c.prioridade() != null) {
-            lista.add(cb.equal(chamado.get("prioridade"), c.prioridade()));
+        if (prioridade != null) {
+            lista.add(cb.equal(chamado.get("prioridade"), prioridade));
         }
-        if (c.categoriaId() != null) {
-            lista.add(cb.equal(chamado.get("categoria").get("id"), c.categoriaId()));
+        if (categoriaId != null) {
+            lista.add(cb.equal(chamado.get("categoria").get("id"), categoriaId));
         }
-        if (c.atendenteId() != null) {
-            lista.add(cb.equal(chamado.get("atendente").get("id"), c.atendenteId()));
+        if (atendenteId != null) {
+            lista.add(cb.equal(chamado.get("atendente").get("id"), atendenteId));
         }
-        return lista.toArray(Predicate[]::new);
     }
 
     private List<Order> ordem(CriteriaBuilder cb, Root<Chamado> chamado, AbaFila aba) {

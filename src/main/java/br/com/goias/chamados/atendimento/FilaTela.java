@@ -83,6 +83,30 @@ public record FilaTela(
                 paginacao, categorias, areas, prioridades, mostrarFiltroArea, areaDescricao).url(aba, 1);
     }
 
+    /** Botão "Kanban": a mesma fila em Kanban, mantendo os filtros (aba "Meus" vira "Só os meus"). */
+    public String urlKanban() {
+        UriComponentsBuilder b = UriComponentsBuilder.fromPath("/atendimento").queryParam("visao", "kanban");
+        if (aba == AbaFila.MEUS) {
+            b.queryParam("meus", "true");
+        }
+        if (filtros.busca() != null && !filtros.busca().isBlank()) {
+            b.queryParam("busca", filtros.busca());
+        }
+        if (filtros.prioridade() != null) {
+            b.queryParam("prioridade", filtros.prioridade().name());
+        }
+        if (filtros.categoriaId() != null) {
+            b.queryParam("categoria", filtros.categoriaId());
+        }
+        if (filtros.areaId() != null) {
+            b.queryParam("area", filtros.areaId());
+        }
+        if (filtros.atendenteId() != null) {
+            b.queryParam("atendente", filtros.atendenteId());
+        }
+        return b.encode().build().toUriString();
+    }
+
     /** Link "Limpar filtros" (mantém só a aba). */
     public String urlLimpar() {
         return "/atendimento?filtro=" + aba.getParametro();

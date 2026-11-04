@@ -32,6 +32,7 @@ import java.util.Map;
  * - ATENDENTE e GESTOR: só a área deles.
  * - ADMIN: todas as áreas, com filtro de área opcional.
  * - Os contadores das abas usam os mesmos filtros (busca, prioridade, categoria, área).
+ * - A conferência dos filtros ({@link #conferir}) também é usada pelo Kanban ({@link KanbanService}).
  */
 @Service
 @RequiredArgsConstructor
@@ -50,47 +51,34 @@ public class FilaService {
                              Long atendente) {
     }
 
+    /**
+     * Filtros já conferidos contra o que o usuário pode ver (usados pela Lista e pelo Kanban).
+     *
+     * @param areaEscopo  área que o usuário enxerga (null = todas, só ADMIN sem filtro de área)
+     * @param areaFiltro  área escolhida no filtro (só ADMIN)
+     */
+    record FiltrosConferidos(Long areaEscopo, Long areaFiltro, List<Area> areasAtivas, String busca,
+                             Prioridade prioridade, List<OpcaoCategoria> categorias, Long categoriaId,
+                             Long atendenteId, String atendenteNome, String areaDescricao) {
+
+        Filtros paraTela() {
+            return new Filtros(busca, prioridade, categoriaId, areaFiltro, atendenteId, atendenteNome);
+        }
+
+        List<OpcaoArea> opcoesArea() {
+            return areasAtivas.stream()
+                    .map(a -> new OpcaoArea(a.getId(), a.getNome() + (a.isAtivo() ? "" : " (inativa)")))
+                    .toList();
+        }
+    }
+
     @Transactional(readOnly = true)
     public FilaTela montar(UsuarioLogado usuario, Parametros p) {
         AbaFila aba = AbaFila.doParametro(p.filtro());
+        FiltrosConferidos fc = conferir(usuario, p.busca(), p.prioridade(), p.categoria(), p.area(), p.atendente());
 
-        // Área visível
-        List<Area> areasAtivas = usuario.isAdmin() ? areaRepository.findAll().stream()
-                .sorted((a, b) -> a.getNome().compareToIgnoreCase(b.getNome())).toList() : List.of();
-        Long areaFiltro = null;
-        Long areaEscopo;
-        if (usuario.isAdmin()) {
-            if (p.area() != null && areasAtivas.stream().anyMatch(a -> a.getId().equals(p.area()))) {
-                areaFiltro = p.area();
-            }
-            areaEscopo = areaFiltro;
-        } else {
-            areaEscopo = usuario.getAreaId();
-        }
-
-        // Filtros conferidos
-        String busca = limparBusca(p.busca());
-        Prioridade prioridade = Arrays.stream(Prioridade.values())
-                .filter(pr -> pr.name().equalsIgnoreCase(p.prioridade() == null ? "" : p.prioridade().strip()))
-                .findFirst().orElse(null);
-        List<OpcaoCategoria> categorias = consultas.categorias(areaEscopo).stream()
-                .map(c -> new OpcaoCategoria(c.getId(), c.getNome() + (c.isAtivo() ? "" : " (inativa)"),
-                        c.getArea().getNome()))
-                .toList();
-        Long categoriaId = p.categoria() != null && categorias.stream().anyMatch(c -> c.id().equals(p.categoria()))
-                ? p.categoria() : null;
-
-        // Responsável (Etapa 5): atalho "ver chamados desta pessoa". Só vale para alguém da área visível.
-        final Long escopo = areaEscopo;
-        Usuario responsavel = p.atendente() == null ? null : usuarioRepository.findById(p.atendente())
-                .filter(u -> escopo == null || (u.getArea() != null && u.getArea().getId().equals(escopo))
-                        || usuario.isAdmin())
-                .orElse(null);
-        Long atendenteId = responsavel == null ? null : responsavel.getId();
-        String atendenteNome = responsavel == null ? null
-                : responsavel.getNome() + (responsavel.isAtivo() ? "" : " (inativo)");
-
-        Criterios criterios = new Criterios(areaEscopo, usuario.getId(), aba, busca, prioridade, categoriaId, atendenteId);
+        Criterios criterios = new Criterios(fc.areaEscopo(), usuario.getId(), aba, fc.busca(), fc.prioridade(),
+                fc.categoriaId(), fc.atendenteId());
 
         // Contadores das abas
         List<Aba> abas = new ArrayList<>();
@@ -118,18 +106,61 @@ public class FilaService {
         Paginacao paginacao = new Paginacao(pagina, totalPaginas, totalDaAba,
                 totalDaAba == 0 ? 0 : primeiro + 1, primeiro + linhas.size());
 
+        return new FilaTela(aba, abas, linhas, fc.paraTela(), paginacao, fc.categorias(), fc.opcoesArea(),
+                List.of(Prioridade.values()), usuario.isAdmin(), fc.areaDescricao());
+    }
+
+    /**
+     * Confere os filtros da URL contra o que o usuário pode ver:
+     * ATENDENTE e GESTOR só a área deles; ADMIN todas (com filtro de área opcional);
+     * categoria e responsável só valem se forem da área visível.
+     */
+    FiltrosConferidos conferir(UsuarioLogado usuario, String buscaDigitada, String prioridadeDigitada,
+                               Long categoria, Long area, Long atendente) {
+        // Área visível
+        List<Area> areasAtivas = usuario.isAdmin() ? areaRepository.findAll().stream()
+                .sorted((a, b) -> a.getNome().compareToIgnoreCase(b.getNome())).toList() : List.of();
+        Long areaFiltro = null;
+        Long areaEscopo;
+        if (usuario.isAdmin()) {
+            if (area != null && areasAtivas.stream().anyMatch(a -> a.getId().equals(area))) {
+                areaFiltro = area;
+            }
+            areaEscopo = areaFiltro;
+        } else {
+            areaEscopo = usuario.getAreaId();
+        }
+
+        // Filtros conferidos
+        String busca = limparBusca(buscaDigitada);
+        Prioridade prioridade = Arrays.stream(Prioridade.values())
+                .filter(pr -> pr.name().equalsIgnoreCase(prioridadeDigitada == null ? "" : prioridadeDigitada.strip()))
+                .findFirst().orElse(null);
+        List<OpcaoCategoria> categorias = consultas.categorias(areaEscopo).stream()
+                .map(c -> new OpcaoCategoria(c.getId(), c.getNome() + (c.isAtivo() ? "" : " (inativa)"),
+                        c.getArea().getNome()))
+                .toList();
+        Long categoriaId = categoria != null && categorias.stream().anyMatch(c -> c.id().equals(categoria))
+                ? categoria : null;
+
+        // Responsável (Etapa 5): atalho "ver chamados desta pessoa". Só vale para alguém da área visível.
+        final Long escopo = areaEscopo;
+        Usuario responsavel = atendente == null ? null : usuarioRepository.findById(atendente)
+                .filter(u -> escopo == null || (u.getArea() != null && u.getArea().getId().equals(escopo))
+                        || usuario.isAdmin())
+                .orElse(null);
+        Long atendenteId = responsavel == null ? null : responsavel.getId();
+        String atendenteNome = responsavel == null ? null
+                : responsavel.getNome() + (responsavel.isAtivo() ? "" : " (inativo)");
+
+        final Long filtroArea = areaFiltro;
         String areaDescricao = usuario.isAdmin()
                 ? (areaFiltro == null ? "Todas as áreas"
-                : areasAtivas.stream().filter(a -> a.getId().equals(p.area())).map(Area::getNome).findFirst().orElse(""))
+                : areasAtivas.stream().filter(a -> a.getId().equals(filtroArea)).map(Area::getNome).findFirst().orElse(""))
                 : usuario.getAreaNome();
 
-        return new FilaTela(aba, abas, linhas,
-                new Filtros(busca, prioridade, categoriaId, areaFiltro, atendenteId, atendenteNome),
-                paginacao, categorias,
-                areasAtivas.stream().map(a -> new OpcaoArea(a.getId(), a.getNome() + (a.isAtivo() ? "" : " (inativa)"))).toList(),
-                List.of(Prioridade.values()),
-                usuario.isAdmin(),
-                areaDescricao);
+        return new FiltrosConferidos(areaEscopo, areaFiltro, areasAtivas, busca, prioridade, categorias, categoriaId,
+                atendenteId, atendenteNome, areaDescricao);
     }
 
     /** Contador do menu lateral: chamados Novos da área do usuário (ADMIN: todas). */
